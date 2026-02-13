@@ -23,8 +23,6 @@ const App = () => {
   const [asistencia, setAsistencia] = useState({});
 
   const nombresDias = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
-  
-  // IMPORTANTE: Esta variable debe recalcularse en cada renderizado
   const numerosDias = obtenerDiasDelMes(mes, semana);
 
   useEffect(() => {
@@ -117,7 +115,6 @@ const App = () => {
   return (
     <div style={{ backgroundColor: '#0a0a0a', minHeight: '100vh', color: '#fff', padding: '20px', fontFamily: 'sans-serif' }}>
       
-      {/* HEADER */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '15px', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ height: '40px' }} />
@@ -149,7 +146,6 @@ const App = () => {
         </div>
       </header>
 
-      {/* FILTROS SECUNDARIOS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '20px' }}>
         {[
           { label: 'MES', value: mes, func: setMes, list: MESES_ANIO },
@@ -170,23 +166,22 @@ const App = () => {
         </div>
       </div>
 
-      {/* TABLA: Usamos el mes y semana en la 'key' para forzar que React la actualice */}
       <div key={`${mes}-${semana}`} style={{ background: '#080808', borderRadius: '15px', border: '1px solid #222', overflowX: 'auto' }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ background: '#000', color: '#FFD700', borderBottom: '1px solid #FFD700' }}>
-              <th style={{ padding: '12px', textAlign: 'left', width: '250px' }}>COLABORADOR</th>
-              <th style={{ width: '150px' }}>SEDE</th>
-              <th style={{ width: '130px' }}>SRT</th>
+              <th style={{ padding: '12px', textAlign: 'left', width: '280px', fontSize: '12px' }}>COLABORADOR</th>
+              <th style={{ width: '150px', fontSize: '12px' }}>SEDE</th>
+              <th style={{ width: '130px', fontSize: '12px' }}>SRT</th>
               {nombresDias.map((d, i) => (
-                <th key={i} style={{ width: '80px' }}>{d} {numerosDias[i]}</th>
+                <th key={i} style={{ width: '85px', fontSize: '12px' }}>{d} {numerosDias[i]}</th>
               ))}
             </tr>
             <tr style={{ background: '#151515', color: '#00FF00' }}>
-              <td colSpan="3" style={{ textAlign: 'right', padding: '10px 20px', fontWeight: 'bold', fontSize: '11px', color: '#FFD700' }}>PERSONAS LIBRANDO:</td>
+              <td colSpan="3" style={{ textAlign: 'right', padding: '12px 20px', fontWeight: 'bold', fontSize: '11px', color: '#FFD700' }}>PERSONAS LIBRANDO:</td>
               {numerosDias.map((n, i) => {
                 const libres = empleadosVisibles.reduce((acc, emp) => asistencia[`${emp.cedula || emp.Cedula}-${n}`] === 'LIBRE' ? acc + 1 : acc, 0);
-                return <td key={i} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>{libres}</td>;
+                return <td key={i} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px' }}>{libres}</td>;
               })}
             </tr>
           </thead>
@@ -195,23 +190,35 @@ const App = () => {
               const id = emp.cedula || emp.Cedula;
               return (
                 <tr key={id} style={{ borderBottom: '1px solid #111' }}>
-                  <td style={{ padding: '10px 15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <div style={{ fontWeight: 'bold' }}>{emp.nombre || emp.Nombre}</div>
-                    <div style={{ fontSize: '9px', color: '#555' }}>CI: {id}</div>
+                  <td style={{ padding: '12px 15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    <div style={{ fontWeight: '800', fontSize: '15px', color: '#fff', marginBottom: '2px' }}>{emp.nombre || emp.Nombre}</div>
+                    <div style={{ fontSize: '10px', color: '#888', fontWeight: 'bold' }}>CI: {id}</div>
                   </td>
-                  <td style={{ textAlign: 'center', color: '#777', fontSize: '11px' }}>{emp.Sede}</td>
+                  <td style={{ textAlign: 'center', color: '#aaa', fontSize: '11px' }}>{emp.Sede}</td>
                   <td style={{ textAlign: 'center', color: '#FFD700', fontSize: '11px', fontWeight: 'bold' }}>{emp.SRT}</td>
                   {numerosDias.map((n, i) => {
-                    const val = asistencia[`${id}-${n}`] || 'LABORAL';
+                    const val = asistencia[`${id}-${n}`] || 'LAB';
                     return (
-                      <td key={i} style={{ padding: '4px', textAlign: 'center' }}>
+                      <td key={i} style={{ padding: '6px', textAlign: 'center' }}>
                         <select 
                           value={val} 
+                          autoComplete="off"
                           onChange={e => setAsistencia({...asistencia, [`${id}-${n}`]: e.target.value})}
-                          style={{ width: '90%', background: '#000', border: '1px solid #222', color: val==='LIBRE'?'#00FF00':'#fff', borderRadius: '4px', fontSize: '10px', padding: '4px', textAlign: 'center' }}
+                          style={{ 
+                            width: '95%', 
+                            background: '#000', 
+                            border: '1px solid #333', 
+                            color: val==='LIBRE'?'#00FF00':'#fff', 
+                            borderRadius: '6px', 
+                            fontSize: '11px', 
+                            padding: '6px 2px', 
+                            textAlign: 'center',
+                            fontWeight: 'bold',
+                            appearance: 'none'
+                          }}
                         >
-                          <option value="LABORAL">LAB</option>
-                          <option value="LIBRE">LIB</option>
+                          <option value="LAB">LAB</option>
+                          <option value="LIBRE">LIBRE</option>
                         </select>
                       </td>
                     );
