@@ -40,7 +40,6 @@ const App = () => {
               let key = col.label || `col_${i}`;
               if (i === 7) key = "Sede"; 
               if (i === 17) key = "SRT";
-              // Formateo de nombres
               if (key.toLowerCase().includes("nombre")) {
                 val = val ? val.toString().toLowerCase().split(' ').map(p => p.charAt(0).toUpperCase() + p.slice(1)).join(' ') : "";
               }
@@ -63,19 +62,20 @@ const App = () => {
   };
 
   const handleGuardar = () => {
-    alert("Planificación guardada con éxito.");
+    alert("Datos guardados temporalmente en el sistema.");
+    console.log("Datos de asistencia:", asistencia);
   };
 
   const exportarExcel = () => {
-    const encabezados = ["COLABORADOR", "ID", "CARGO", "SRT", "SEDE", ...nombresDias.map((d, i) => `${d} ${numerosDias[i]}`)];
+    const encabezados = ["COLABORADOR", "ID", "SRT", "SEDE", "CARGO", ...nombresDias.map((d, i) => `${d} ${numerosDias[i]}`)];
     const filas = empleadosVisibles.map(emp => {
       const id = emp.cedula || emp.Cedula;
       return [
         emp.nombre || emp.Nombre, 
         id, 
-        emp.Cargo,
         emp.SRT, 
         emp.Sede, 
+        emp.Cargo, 
         ...numerosDias.map(n => asistencia[`${id}-${n}`] || 'LABORAL')
       ];
     });
@@ -83,7 +83,7 @@ const App = () => {
     const wb = XLSStyle.utils.book_new();
     const ws = XLSStyle.utils.aoa_to_sheet([encabezados, ...filas]);
     XLSStyle.utils.book_append_sheet(wb, ws, "Asistencia");
-    XLSStyle.writeFile(wb, `Planificacion_${mes}_${semana}.xlsx`);
+    XLSStyle.writeFile(wb, `Reporte_Asistencia_${mes}_${semana}.xlsx`);
   };
 
   const listaSRT = ['TODAS', ...new Set(empleados.map(emp => emp.SRT).filter(Boolean))];
@@ -132,7 +132,7 @@ const App = () => {
                 <Save size={16} /> GUARDAR
             </button>
             <button onClick={exportarExcel} style={{ background: '#FFD700', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '12px' }}>
-                <FileSpreadsheet size={16} /> EXPORTAR BDD
+                <FileSpreadsheet size={16} /> EXPORTAR
             </button>
             <button onClick={() => setIsLoggedIn(false)} style={{ background: 'none', border: '1px solid #FF4444', color: '#FF4444', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '12px' }}>
                 <LogOut size={16} /> SALIR
@@ -157,7 +157,7 @@ const App = () => {
             </div>
           ))}
           <div style={{ background: '#111', padding: '10px', borderRadius: '12px', border: '1px solid #333' }}>
-            <label style={{ color: '#FFD700', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>BUSCAR CI/NOM</label>
+            <label style={{ color: '#FFD700', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>BUSCAR</label>
             <input type="text" placeholder="Escriba..." style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px' }} onChange={e => setBusqueda(e.target.value)} />
           </div>
         </div>
@@ -167,14 +167,15 @@ const App = () => {
           <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
             <thead>
               <tr style={{ background: '#000', color: '#FFD700', borderBottom: '2px solid #FFD700' }}>
-                <th style={{ padding: '15px', textAlign: 'left', width: '320px', fontSize: '13px' }}>COLABORADOR</th>
+                <th style={{ padding: '15px', textAlign: 'left', width: '300px', fontSize: '13px' }}>COLABORADOR</th>
                 <th style={{ width: '180px', fontSize: '13px' }}>SEDE</th>
+                <th style={{ width: '130px', fontSize: '13px' }}>SRT</th>
                 {nombresDias.map((d, i) => (
-                  <th key={i} style={{ width: '100px', fontSize: '12px' }}>{d} {numerosDias[i]}</th>
+                  <th key={i} style={{ width: '95px', fontSize: '12px' }}>{d} {numerosDias[i]}</th>
                 ))}
               </tr>
               <tr style={{ background: '#151515', color: '#00FF00' }}>
-                <td colSpan="2" style={{ textAlign: 'right', padding: '12px 25px', fontWeight: '900', fontSize: '12px', color: '#FFD700' }}>PERSONAS LIBRANDO:</td>
+                <td colSpan="3" style={{ textAlign: 'right', padding: '12px 25px', fontWeight: '900', fontSize: '12px', color: '#FFD700' }}>PERSONAS LIBRANDO:</td>
                 {numerosDias.map((n, i) => {
                   const libres = empleadosVisibles.reduce((acc, emp) => asistencia[`${emp.cedula || emp.Cedula}-${n}`] === 'LIBRE' ? acc + 1 : acc, 0);
                   return <td key={i} style={{ textAlign: 'center', fontWeight: '900', fontSize: '18px' }}>{libres}</td>;
@@ -188,11 +189,10 @@ const App = () => {
                   <tr key={id} style={{ borderBottom: '1px solid #111' }}>
                     <td style={{ padding: '15px 20px' }}>
                       <div style={{ fontWeight: '800', fontSize: '15px', color: '#fff' }}>{emp.nombre || emp.Nombre}</div>
-                      <div style={{ fontSize: '10px', color: '#FFD700', fontWeight: 'bold' }}>
-                        CI: {id} | <span style={{ color: '#888' }}>{emp.Cargo || "SIN CARGO"}</span>
-                      </div>
+                      <div style={{ fontSize: '10px', color: '#888' }}>CI: {id}</div>
                     </td>
-                    <td style={{ textAlign: 'center', color: '#aaa', fontSize: '12px', padding: '0 10px' }}>{emp.Sede}</td>
+                    <td style={{ textAlign: 'center', color: '#aaa', fontSize: '12px' }}>{emp.Sede}</td>
+                    <td style={{ textAlign: 'center', color: '#FFD700', fontSize: '11px', fontWeight: 'bold' }}>{emp.SRT}</td>
                     {numerosDias.map((n, i) => {
                       const val = asistencia[`${id}-${n}`] || 'LABORAL';
                       return (
@@ -201,7 +201,7 @@ const App = () => {
                             value={val} 
                             autoComplete="off"
                             onChange={e => setAsistencia({...asistencia, [`${id}-${n}`]: e.target.value})}
-                            style={{ width: '95%', background: '#000', border: '1px solid #333', color: val==='LIBRE'?'#00FF00':'#fff', borderRadius: '8px', fontSize: '11px', padding: '8px 2px', textAlign: 'center', fontWeight: 'bold', cursor: 'pointer' }}
+                            style={{ width: '95%', background: '#000', border: '1px solid #333', color: val==='LIBRE'?'#00FF00':'#fff', borderRadius: '8px', fontSize: '11px', padding: '8px 2px', textAlign: 'center', fontWeight: 'bold' }}
                           >
                             <option value="LABORAL">LABORAL</option>
                             <option value="LIBRE">LIBRE</option>
