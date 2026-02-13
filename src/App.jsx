@@ -203,7 +203,7 @@ const App = () => {
                           onChange={e => setAsistencia({...asistencia, [`${id}-${n}`]: e.target.value})}
                           style={{ width: '90%', background: '#000', border: '1px solid #222', color: val==='LIBRE'?'#00FF00':'#fff', borderRadius: '4px', fontSize: '10px', padding: '4px', textAlign: 'center' }}
                         >
-                          <option value="LABORAL">LAB</option>
+                          <option value="LABORAL.">LAB</option>
                           <option value="LIBRE">LIB</option>
                         </select>
                       </td>
