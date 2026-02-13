@@ -22,7 +22,9 @@ const App = () => {
   const [busqueda, setBusqueda] = useState('');
   const [asistencia, setAsistencia] = useState({});
 
-  const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  const nombresDias = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
+  
+  // IMPORTANTE: Esta variable debe recalcularse en cada renderizado
   const numerosDias = obtenerDiasDelMes(mes, semana);
 
   useEffect(() => {
@@ -115,6 +117,7 @@ const App = () => {
   return (
     <div style={{ backgroundColor: '#0a0a0a', minHeight: '100vh', color: '#fff', padding: '20px', fontFamily: 'sans-serif' }}>
       
+      {/* HEADER */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '15px', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ height: '40px' }} />
@@ -146,6 +149,7 @@ const App = () => {
         </div>
       </header>
 
+      {/* FILTROS SECUNDARIOS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '20px' }}>
         {[
           { label: 'MES', value: mes, func: setMes, list: MESES_ANIO },
@@ -166,14 +170,17 @@ const App = () => {
         </div>
       </div>
 
-      <div style={{ background: '#080808', borderRadius: '15px', border: '1px solid #222', overflowX: 'auto' }}>
+      {/* TABLA: Usamos el mes y semana en la 'key' para forzar que React la actualice */}
+      <div key={`${mes}-${semana}`} style={{ background: '#080808', borderRadius: '15px', border: '1px solid #222', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ background: '#000', color: '#FFD700', borderBottom: '1px solid #FFD700' }}>
               <th style={{ padding: '12px', textAlign: 'left', width: '250px' }}>COLABORADOR</th>
               <th style={{ width: '150px' }}>SEDE</th>
               <th style={{ width: '130px' }}>SRT</th>
-              {nombresDias.map((d, i) => <th key={i} style={{ width: '80px' }}>{d.substring(0,2)} {numerosDias[i]}</th>)}
+              {nombresDias.map((d, i) => (
+                <th key={i} style={{ width: '80px' }}>{d} {numerosDias[i]}</th>
+              ))}
             </tr>
             <tr style={{ background: '#151515', color: '#00FF00' }}>
               <td colSpan="3" style={{ textAlign: 'right', padding: '10px 20px', fontWeight: 'bold', fontSize: '11px', color: '#FFD700' }}>PERSONAS LIBRANDO:</td>
@@ -203,7 +210,7 @@ const App = () => {
                           onChange={e => setAsistencia({...asistencia, [`${id}-${n}`]: e.target.value})}
                           style={{ width: '90%', background: '#000', border: '1px solid #222', color: val==='LIBRE'?'#00FF00':'#fff', borderRadius: '4px', fontSize: '10px', padding: '4px', textAlign: 'center' }}
                         >
-                          <option value="LABORAL.">LAB</option>
+                          <option value="LABORAL">LAB</option>
                           <option value="LIBRE">LIB</option>
                         </select>
                       </td>
