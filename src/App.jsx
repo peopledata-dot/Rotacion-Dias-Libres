@@ -25,7 +25,6 @@ const App = () => {
   const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const numerosDias = obtenerDiasDelMes(mes, semana);
 
-  // --- SEGURIDAD ---
   useEffect(() => {
     const handleContextMenu = (e) => e.preventDefault();
     const handleKeyDown = (e) => {
@@ -39,7 +38,6 @@ const App = () => {
     };
   }, []);
 
-  // --- CARGA DE DATOS ---
   useEffect(() => {
     if (isLoggedIn) {
       const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19i5pwrIx8RX0P2OkE1qY2o5igKvvv2hxUuvb9jM_8LE/gviz/tq?tqx=out:json&gid=839594636';
@@ -75,7 +73,6 @@ const App = () => {
     }
   };
 
-  // --- LÓGICA FILTROS ---
   const listaSRT = ['TODAS', ...new Set(empleados.map(emp => emp.SRT).filter(Boolean))];
   const listaRegiones = ['TODAS', ...new Set(empleados.filter(e => srtFiltro === 'TODAS' || e.SRT === srtFiltro).map(e => e.Region).filter(Boolean))];
   const listaSedes = ['TODAS', ...new Set(empleados.filter(e => (srtFiltro === 'TODAS' || e.SRT === srtFiltro) && (regionFiltro === 'TODAS' || e.Region === regionFiltro)).map(e => e.Sede).filter(Boolean))];
@@ -104,13 +101,12 @@ const App = () => {
   if (!isLoggedIn) {
     return (
       <div style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.7), rgba(0,0,0,0.7)), url('/BOT.png')`, backgroundSize: 'cover', backgroundPosition: 'center', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif' }}>
-        <form onSubmit={handleLogin} style={{ background: 'rgba(10,10,10,0.95)', padding: '40px', borderRadius: '24px', border: '1px solid #FFD700', width: '350px', textAlign: 'center', boxShadow: '0 0 30px rgba(0,0,0,0.5)' }}>
+        <form onSubmit={handleLogin} style={{ background: 'rgba(10,10,10,0.95)', padding: '40px', borderRadius: '24px', border: '1px solid #FFD700', width: '350px', textAlign: 'center' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ height: '70px', marginBottom: '20px' }} />
-          <h2 style={{ color: '#FFD700', fontSize: '18px', fontWeight: '800', marginBottom: '25px', letterSpacing: '1px' }}>ACCESO RESTRINGIDO</h2>
-          <input type="text" placeholder="USUARIO" style={{ width: '100%', padding: '12px', background: '#000', border: '1px solid #333', color: '#fff', borderRadius: '10px', marginBottom: '15px', outline: 'none' }} value={loginData.usuario} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
-          <input type="password" placeholder="PASSWORD" style={{ width: '100%', padding: '12px', background: '#000', border: '1px solid #333', color: '#fff', borderRadius: '10px', marginBottom: '20px', outline: 'none' }} value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
-          {errorLogin && <p style={{ color: '#ff4444', fontSize: '12px', marginBottom: '15px' }}>Credenciales incorrectas</p>}
-          <button style={{ width: '100%', padding: '14px', background: '#FFD700', color: '#000', fontWeight: 'bold', borderRadius: '10px', border: 'none', cursor: 'pointer', fontSize: '14px' }}>ENTRAR AL SISTEMA</button>
+          <h2 style={{ color: '#FFD700', fontSize: '18px', fontWeight: '800', marginBottom: '25px' }}>ACCESO RESTRINGIDO</h2>
+          <input type="text" placeholder="USUARIO" style={{ width: '100%', padding: '12px', background: '#000', border: '1px solid #333', color: '#fff', borderRadius: '10px', marginBottom: '15px' }} value={loginData.usuario} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
+          <input type="password" placeholder="PASSWORD" style={{ width: '100%', padding: '12px', background: '#000', border: '1px solid #333', color: '#fff', borderRadius: '10px', marginBottom: '20px' }} value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
+          <button style={{ width: '100%', padding: '14px', background: '#FFD700', color: '#000', fontWeight: 'bold', borderRadius: '10px', border: 'none', cursor: 'pointer' }}>ENTRAR</button>
         </form>
       </div>
     );
@@ -119,16 +115,15 @@ const App = () => {
   return (
     <div style={{ backgroundColor: '#0a0a0a', minHeight: '100vh', color: '#fff', padding: '20px', fontFamily: 'sans-serif' }}>
       
-      {/* HEADER: LOGO + TITULO + FILTRO SRT */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '15px', marginBottom: '25px' }}>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #222', paddingBottom: '15px', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ height: '40px' }} />
           <div>
-            <h1 style={{ color: '#FFD700', fontSize: '18px', margin: 0, fontWeight: '800' }}>ASISTENCIA Y LIBRES</h1>
+            <h1 style={{ color: '#FFD700', fontSize: '18px', margin: 0 }}>ASISTENCIA Y LIBRES</h1>
             <p style={{ fontSize: '9px', color: '#666', margin: 0 }}>CANGURO VENEZUELA</p>
           </div>
           
-          <div style={{ marginLeft: '20px', display: 'flex', alignItems: 'center', gap: '8px', background: '#000', padding: '6px 15px', borderRadius: '8px', border: '1px solid #FFD700' }}>
+          <div style={{ marginLeft: '20px', background: '#000', padding: '6px 15px', borderRadius: '8px', border: '1px solid #FFD700', display: 'flex', alignItems: 'center', gap: '8px' }}>
             <Users size={14} color="#FFD700" />
             <span style={{ fontSize: '11px', color: '#FFD700', fontWeight: 'bold' }}>SRT:</span>
             <select 
@@ -142,7 +137,7 @@ const App = () => {
         </div>
 
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={exportarExcel} style={{ background: '#FFD700', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px', display: 'flex', alignItems: 'center', gap: '5px' }}>
+          <button onClick={exportarExcel} style={{ background: '#FFD700', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer', fontSize: '12px' }}>
             <FileSpreadsheet size={16}/> EXPORTAR
           </button>
           <button onClick={() => setIsLoggedIn(false)} style={{ background: '#222', border: 'none', color: '#fff', padding: '8px', borderRadius: '8px', cursor: 'pointer' }}>
@@ -151,8 +146,7 @@ const App = () => {
         </div>
       </header>
 
-      {/* FILTROS SECUNDARIOS */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '25px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '10px', marginBottom: '20px' }}>
         {[
           { label: 'MES', value: mes, func: setMes, list: MESES_ANIO },
           { label: 'REGIÓN', value: regionFiltro, func: (v) => {setRegionFiltro(v); setSedeFiltro('TODAS')}, list: listaRegiones },
@@ -161,33 +155,28 @@ const App = () => {
         ].map((f, i) => (
           <div key={i} style={{ background: '#111', padding: '8px 12px', borderRadius: '10px', border: '1px solid #222' }}>
             <label style={{ color: '#FFD700', fontSize: '9px', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>{f.label}</label>
-            <select value={f.value} onChange={e => f.func(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px', cursor: 'pointer' }}>
+            <select value={f.value} onChange={e => f.func(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px' }}>
               {f.list.map(opt => <option key={opt} value={opt} style={{background:'#000'}}>{opt}</option>)}
             </select>
           </div>
         ))}
         <div style={{ background: '#111', padding: '8px 12px', borderRadius: '10px', border: '1px solid #222' }}>
           <label style={{ color: '#FFD700', fontSize: '9px', fontWeight: 'bold', display: 'block', marginBottom: '4px' }}>BUSCAR</label>
-          <div style={{ display: 'flex', alignItems: 'center' }}>
-            <Search size={14} color="#444" />
-            <input type="text" placeholder="Nombre o CI..." style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', marginLeft: '5px', fontSize: '13px' }} onChange={e => setBusqueda(e.target.value)} />
-          </div>
+          <input type="text" placeholder="Nombre/CI..." style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px' }} onChange={e => setBusqueda(e.target.value)} />
         </div>
       </div>
 
-      {/* TABLA PRINCIPAL OPTIMIZADA */}
       <div style={{ background: '#080808', borderRadius: '15px', border: '1px solid #222', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ background: '#000', color: '#FFD700', borderBottom: '1px solid #FFD700' }}>
-              <th style={{ padding: '12px', textAlign: 'left', width: '220px' }}>COLABORADOR</th>
-              <th style={{ width: '150px', textAlign: 'center' }}>SEDE</th>
-              {nombresDias.map((d, i) => (
-                <th key={i} style={{ width: '75px', textAlign: 'center' }}>{d.substring(0,2)} {numerosDias[i]}</th>
-              ))}
+              <th style={{ padding: '12px', textAlign: 'left', width: '250px' }}>COLABORADOR</th>
+              <th style={{ width: '150px' }}>SEDE</th>
+              <th style={{ width: '130px' }}>SRT</th>
+              {nombresDias.map((d, i) => <th key={i} style={{ width: '80px' }}>{d.substring(0,2)} {numerosDias[i]}</th>)}
             </tr>
             <tr style={{ background: '#151515', color: '#00FF00' }}>
-              <td colSpan="2" style={{ textAlign: 'right', padding: '10px 20px', fontWeight: 'bold', fontSize: '10px', color: '#FFD700' }}>PERSONAS LIBRANDO:</td>
+              <td colSpan="3" style={{ textAlign: 'right', padding: '10px 20px', fontWeight: 'bold', fontSize: '11px', color: '#FFD700' }}>PERSONAS LIBRANDO:</td>
               {numerosDias.map((n, i) => {
                 const libres = empleadosVisibles.reduce((acc, emp) => asistencia[`${emp.cedula || emp.Cedula}-${n}`] === 'LIBRE' ? acc + 1 : acc, 0);
                 return <td key={i} style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '14px' }}>{libres}</td>;
@@ -200,10 +189,11 @@ const App = () => {
               return (
                 <tr key={id} style={{ borderBottom: '1px solid #111' }}>
                   <td style={{ padding: '10px 15px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    <div style={{ fontWeight: 'bold', color: '#eee' }}>{emp.nombre || emp.Nombre}</div>
-                    <div style={{ fontSize: '9px', color: '#555' }}>CI: {id} | {emp.Cargo}</div>
+                    <div style={{ fontWeight: 'bold' }}>{emp.nombre || emp.Nombre}</div>
+                    <div style={{ fontSize: '9px', color: '#555' }}>CI: {id}</div>
                   </td>
                   <td style={{ textAlign: 'center', color: '#777', fontSize: '11px' }}>{emp.Sede}</td>
+                  <td style={{ textAlign: 'center', color: '#FFD700', fontSize: '11px', fontWeight: 'bold' }}>{emp.SRT}</td>
                   {numerosDias.map((n, i) => {
                     const val = asistencia[`${id}-${n}`] || 'LABORAL';
                     return (
@@ -211,10 +201,10 @@ const App = () => {
                         <select 
                           value={val} 
                           onChange={e => setAsistencia({...asistencia, [`${id}-${n}`]: e.target.value})}
-                          style={{ width: '90%', background: '#000', border: '1px solid #222', color: val === 'LIBRE' ? '#00FF00' : '#fff', borderRadius: '4px', fontSize: '10px', padding: '4px', cursor: 'pointer', textAlign: 'center' }}
+                          style={{ width: '90%', background: '#000', border: '1px solid #222', color: val==='LIBRE'?'#00FF00':'#fff', borderRadius: '4px', fontSize: '10px', padding: '4px', textAlign: 'center' }}
                         >
-                          <option value="LABORAL">LABORAL</option>
-                          <option value="LIBRE">LIBRE</option>
+                          <option value="LABORAL">LAB</option>
+                          <option value="LIBRE">LIB</option>
                         </select>
                       </td>
                     );
