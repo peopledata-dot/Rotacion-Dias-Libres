@@ -20,14 +20,18 @@ const App = () => {
   const [sedeFiltro, setSedeFiltro] = useState('TODAS');
   
   const [busqueda, setBusqueda] = useState('');
-  const [asistencia, setAsistencia] = useState({});
   const [cargando, setCargando] = useState(false);
 
-  const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  // Carga inicial de datos desde LocalStorage para persistencia
+  const [asistencia, setAsistencia] = useState(() => {
+    const data = localStorage.getItem('BDD_PLANIFICACION_V3');
+    return data ? JSON.parse(data) : {};
+  });
+
+  const nombresDias = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
   const numerosDias = obtenerDiasDelMes(mes, semana);
   const anioActual = new Date().getFullYear();
 
-  // 1. CARGA DE DATOS DESDE GOOGLE SHEETS (EMPLEADOS)
   useEffect(() => {
     if (isLoggedIn) {
       const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19i5pwrIx8RX0P2OkE1qY2o5igKvvv2hxUuvb9jM_8LE/gviz/tq?tqx=out:json&gid=839594636';
@@ -51,10 +55,6 @@ const App = () => {
           });
           setEmpleados(data.filter(e => (e.Estatus || "").toString().toUpperCase() !== "EGRESO"));
         });
-      
-      // Cargar asistencia guardada (Intentar desde localStorage primero por velocidad)
-      const guardado = localStorage.getItem('asistencia_canguro_v1');
-      if (guardado) setAsistencia(JSON.parse(guardado));
     }
   }, [isLoggedIn]);
 
@@ -67,23 +67,20 @@ const App = () => {
     }
   };
 
-  // 2. GUARDADO "PERMANENTE" (Sincronizado)
   const handleGuardar = () => {
     setCargando(true);
-    localStorage.setItem('asistencia_canguro_v1', JSON.stringify(asistencia));
-    
-    // Simulación de guardado en red (Aquí se podría conectar a una API)
+    localStorage.setItem('BDD_PLANIFICACION_V3', JSON.stringify(asistencia));
     setTimeout(() => {
       setCargando(false);
-      alert("PLANIFICACIÓN GUARDADA EXITOSAMENTE.\n\nTodos los usuarios con este navegador verán los cambios.");
-    }, 800);
+      alert("¡CAMBIOS GUARDADOS EXITOSAMENTE!");
+    }, 600);
   };
 
   const listaSRT = ['TODAS', ...new Set(empleados.map(emp => emp.SRT).filter(Boolean))];
-  const listaRegiones = ['TODAS', ...new Set(empleados.filter(e => srtFiltro === 'TODAS' || e.SRT === srtFiltro).map(e => e.Region).filter(Boolean))];
-  const listaSedes = ['TODAS', ...new Set(empleados.filter(e => (srtFiltro === 'TODAS' || e.SRT === srtFiltro) && (regionFiltro === 'TODAS' || e.Region === regionFiltro)).map(e => e.Sede).filter(Boolean))];
+  const listaRegiones = ['TODAS', ...new Set(empleados.map(e => e.Region).filter(Boolean))];
+  const listaSedes = ['TODAS', ...new Set(empleados.map(e => e.Sede).filter(Boolean))];
 
-  // 3. FILTRO DE PERSONAL (SIN LÍMITES)
+  // FILTRADO DE PERSONAL (Lógica corregida para mostrar a todos por defecto)
   const empleadosVisibles = empleados.filter(emp => {
     const cumpleSRT = srtFiltro === 'TODAS' || emp.SRT === srtFiltro;
     const cumpleReg = regionFiltro === 'TODAS' || emp.Region === regionFiltro;
@@ -105,7 +102,7 @@ const App = () => {
             <button style={{ width: '90%', padding: '15px', background: '#FFD700', color: '#000', fontWeight: '900', borderRadius: '12px', border: 'none', cursor: 'pointer', marginTop: '10px' }}>ENTRAR</button>
           </form>
         </div>
-        <p style={{ color: '#fff', fontSize: '11px', marginTop: '20px' }}>Dirección de Tecnología - Canguro Venezuela {anioActual}</p>
+        <p style={{ color: '#fff', fontSize: '11px', marginTop: '20px', fontWeight: 'bold' }}>Dirección de Tecnología - Canguro Venezuela {anioActual}</p>
       </div>
     );
   }
@@ -113,25 +110,24 @@ const App = () => {
   return (
     <div style={{ backgroundColor: '#050505', minHeight: '100vh', color: '#fff', padding: '20px', fontFamily: 'sans-serif' }}>
       
-      {/* HEADER DINÁMICO */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px 25px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ height: '40px' }} />
           <div>
             <h1 style={{ color: '#FFD700', fontSize: '18px', margin: 0, fontWeight: '900' }}>PLANIFICACIÓN DÍAS LIBRES</h1>
-            <span style={{ fontSize: '12px', color: '#00FF00' }}>● Sistema en Línea (Todo el Personal)</span>
+            <span style={{ fontSize: '12px', color: '#00FF00' }}>● Sistema en Línea (Personal Completo)</span>
           </div>
         </div>
         
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={handleGuardar} disabled={cargando} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button onClick={handleGuardar} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '8px' }}>
              {cargando ? <RefreshCw className="animate-spin" size={18} /> : <Save size={18} />} GUARDAR TODO
           </button>
           <button onClick={() => setIsLoggedIn(false)} style={{ background: '#FF4444', border: 'none', color: '#fff', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', fontWeight: 'bold' }}>SALIR</button>
         </div>
       </header>
 
-      {/* FILTROS MEJORADOS PARA RESPETAR SEMANAS */}
+      {/* FILTROS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
         {[
           { label: 'MES', value: mes, func: setMes, list: MESES_ANIO },
@@ -153,27 +149,25 @@ const App = () => {
         </div>
       </div>
 
-      {/* TABLA SIN LÍMITES DE ALTURA - MUESTRA TODO EL PERSONAL */}
+      {/* TABLA COMPLETA */}
       <div style={{ background: '#080808', borderRadius: '20px', border: '1px solid #222' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse' }}>
           <thead>
             <tr style={{ background: '#000', color: '#FFD700', borderBottom: '2px solid #FFD700' }}>
-              <th style={{ padding: '20px', textAlign: 'left', width: '350px' }}>COLABORADOR / CI / CARGO</th>
+              <th style={{ padding: '20px', textAlign: 'left', width: '350px' }}>DATOS DEL COLABORADOR</th>
               <th style={{ width: '180px' }}>SEDE</th>
               {nombresDias.map((d, i) => (
-                <th key={i} style={{ width: '100px' }}>{d} {numerosDias[i]}</th>
+                <th key={i} style={{ width: '100px', fontSize: '13px' }}>{d} {numerosDias[i]}</th>
               ))}
             </tr>
-            <tr style={{ background: '#111', color: '#00FF00' }}>
+            <tr style={{ background: '#111' }}>
               <td colSpan="2" style={{ textAlign: 'right', padding: '15px', fontWeight: 'bold', color: '#FFD700' }}>TOTAL LIBRANDO:</td>
               {numerosDias.map((n, i) => {
-                // Clave única por MES, SEMANA y DÍA
-                const claveLibres = `${mes}-${semana}-${n}`;
-                const totales = empleadosVisibles.reduce((acc, emp) => {
-                   const key = `${emp.cedula || emp.Cedula}-${mes}-${semana}-${n}`;
-                   return asistencia[key] === 'LIBRE' ? acc + 1 : acc;
+                const total = empleadosVisibles.reduce((acc, emp) => {
+                  const key = `${emp.cedula || emp.Cedula}-${mes}-${semana}-${n}`;
+                  return asistencia[key] === 'LIBRE' ? acc + 1 : acc;
                 }, 0);
-                return <td key={i} style={{ textAlign: 'center', fontWeight: '900', fontSize: '20px' }}>{totales}</td>;
+                return <td key={i} style={{ textAlign: 'center', fontWeight: '900', fontSize: '20px', color: '#00FF00' }}>{total}</td>;
               })}
             </tr>
           </thead>
@@ -183,12 +177,12 @@ const App = () => {
               return (
                 <tr key={id} style={{ borderBottom: '1px solid #151515' }}>
                   <td style={{ padding: '15px 25px' }}>
-                    <div style={{ fontWeight: '800', fontSize: '16px' }}>{emp.nombre || emp.Nombre}</div>
-                    <div style={{ fontSize: '11px', color: '#FFD700' }}>CI: {id} | <span style={{color:'#777'}}>{emp.Cargo}</span></div>
+                    <div style={{ fontWeight: '800', fontSize: '16px', color: '#fff' }}>{emp.nombre || emp.Nombre}</div>
+                    <div style={{ fontSize: '11px', color: '#FFD700', fontWeight: 'bold' }}>CI: {id} | <span style={{color:'#888'}}>{emp.Cargo}</span></div>
                   </td>
                   <td style={{ textAlign: 'center', color: '#999', fontSize: '12px' }}>{emp.Sede}</td>
                   {numerosDias.map((n, i) => {
-                    // CLAVE ÚNICA: Cédula + Mes + Semana + Día
+                    // CLAVE ÚNICA POR COLABORADOR, MES, SEMANA Y DÍA
                     const uniqueKey = `${id}-${mes}-${semana}-${n}`;
                     const val = asistencia[uniqueKey] || 'LABORAL';
                     
@@ -214,14 +208,9 @@ const App = () => {
             })}
           </tbody>
         </table>
-        {empleadosVisibles.length === 0 && (
-          <div style={{padding: '50px', textAlign: 'center', color: '#FFD700', fontWeight: 'bold'}}>
-            NO SE ENCONTRÓ PERSONAL CON ESTOS FILTROS.
-          </div>
-        )}
       </div>
 
-      <footer style={{ textAlign: 'center', padding: '40px 0' }}>
+      <footer style={{ textAlign: 'center', padding: '30px 0' }}>
         <p style={{ color: '#444', fontSize: '12px', fontWeight: 'bold' }}>
           Dirección de Tecnología - Canguro Venezuela {anioActual}
         </p>
