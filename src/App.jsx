@@ -20,9 +20,14 @@ const App = () => {
   const [sedeFiltro, setSedeFiltro] = useState('TODAS');
   
   const [busqueda, setBusqueda] = useState('');
-  const [asistencia, setAsistencia] = useState({});
+  
+  // CARGA INICIAL DE ASISTENCIA DESDE EL ALMACENAMIENTO PERMANENTE (LocalStorage)
+  const [asistencia, setAsistencia] = useState(() => {
+    const guardado = localStorage.getItem('asistencia_permanente');
+    return guardado ? JSON.parse(guardado) : {};
+  });
 
-  const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
+  const nombresDias = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
   const numerosDias = obtenerDiasDelMes(mes, semana);
   const anioActual = new Date().getFullYear();
 
@@ -47,6 +52,7 @@ const App = () => {
             });
             return obj;
           });
+          // FILTRADO DE SOLO EGRESOS, PERO MOSTRANDO TODO EL PERSONAL RESTANTE
           setEmpleados(data.filter(e => (e.Estatus || "").toString().toUpperCase() !== "EGRESO"));
         }).catch(err => console.error(err));
     }
@@ -61,21 +67,18 @@ const App = () => {
     }
   };
 
-  const handleGuardar = () => {
-    alert("Datos guardados temporalmente en el sistema.");
-    console.log("Datos de asistencia:", asistencia);
+  // FUNCIÓN DE GUARDADO PERMANENTE
+  const handleGuardarPermanente = () => {
+    localStorage.setItem('asistencia_permanente', JSON.stringify(asistencia));
+    alert("¡PLANIFICACIÓN GUARDADA DE FORMA PERMANENTE!");
   };
 
   const exportarExcel = () => {
-    const encabezados = ["COLABORADOR", "ID", "SRT", "SEDE", "CARGO", ...nombresDias.map((d, i) => `${d} ${numerosDias[i]}`)];
+    const encabezados = ["COLABORADOR", "ID", "CARGO", "SRT", "SEDE", ...nombresDias.map((d, i) => `${d} ${numerosDias[i]}`)];
     const filas = empleadosVisibles.map(emp => {
       const id = emp.cedula || emp.Cedula;
       return [
-        emp.nombre || emp.Nombre, 
-        id, 
-        emp.SRT, 
-        emp.Sede, 
-        emp.Cargo, 
+        emp.nombre || emp.Nombre, id, emp.Cargo, emp.SRT, emp.Sede, 
         ...numerosDias.map(n => asistencia[`${id}-${n}`] || 'LABORAL')
       ];
     });
@@ -83,7 +86,7 @@ const App = () => {
     const wb = XLSStyle.utils.book_new();
     const ws = XLSStyle.utils.aoa_to_sheet([encabezados, ...filas]);
     XLSStyle.utils.book_append_sheet(wb, ws, "Asistencia");
-    XLSStyle.writeFile(wb, `Reporte_Asistencia_${mes}_${semana}.xlsx`);
+    XLSStyle.writeFile(wb, `Planificacion_Canguro_${mes}.xlsx`);
   };
 
   const listaSRT = ['TODAS', ...new Set(empleados.map(emp => emp.SRT).filter(Boolean))];
@@ -112,113 +115,116 @@ const App = () => {
             <button style={{ width: '90%', padding: '15px', background: '#FFD700', color: '#000', fontWeight: '900', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '16px', marginTop: '15px' }}>ENTRAR</button>
           </form>
         </div>
-        <p style={{ color: '#fff', fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.5px', opacity: 0.8 }}>Dirección de Tecnología - Canguro Venezuela {anioActual}</p>
+        <p style={{ color: '#fff', fontSize: '11px', fontWeight: 'bold', opacity: 0.8 }}>Dirección de Tecnología - Canguro Venezuela {anioActual}</p>
       </div>
     );
   }
 
   return (
-    <div style={{ backgroundColor: '#050505', minHeight: '100vh', display: 'flex', flexDirection: 'column', color: '#fff', padding: '20px', fontFamily: 'sans-serif' }}>
+    <div style={{ backgroundColor: '#050505', minHeight: '100vh', color: '#fff', padding: '20px', fontFamily: 'sans-serif' }}>
       
-      <div style={{ flex: 1 }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px 25px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <img src="/logo-canguro.png" alt="Logo" style={{ height: '40px' }} />
-            <h1 style={{ color: '#FFD700', fontSize: '18px', margin: 0, fontWeight: '900' }}>PLANIFICACIÓN DÍAS LIBRES</h1>
-          </div>
-          
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={handleGuardar} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '12px' }}>
-                <Save size={16} /> GUARDAR
-            </button>
-            <button onClick={exportarExcel} style={{ background: '#FFD700', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '12px' }}>
-                <FileSpreadsheet size={16} /> EXPORTAR
-            </button>
-            <button onClick={() => setIsLoggedIn(false)} style={{ background: 'none', border: '1px solid #FF4444', color: '#FF4444', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '12px' }}>
-                <LogOut size={16} /> SALIR
-            </button>
-          </div>
-        </header>
-
-        {/* FILTROS */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
-          {[
-            { label: 'MES', value: mes, func: setMes, list: MESES_ANIO },
-            { label: 'SRT', value: srtFiltro, func: (v) => {setSrtFiltro(v); setRegionFiltro('TODAS'); setSedeFiltro('TODAS');}, list: listaSRT },
-            { label: 'REGIÓN', value: regionFiltro, func: (v) => {setRegionFiltro(v); setSedeFiltro('TODAS')}, list: listaRegiones },
-            { label: 'SEDE', value: sedeFiltro, func: setSedeFiltro, list: listaSedes },
-            { label: 'SEMANA', value: semana, func: setSemana, list: SEMANAS_MES }
-          ].map((f, i) => (
-            <div key={i} style={{ background: '#111', padding: '10px', borderRadius: '12px', border: '1px solid #333' }}>
-              <label style={{ color: '#FFD700', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>{f.label}</label>
-              <select value={f.value} onChange={e => f.func(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px', fontWeight: 'bold' }}>
-                {f.list.map(opt => <option key={opt} value={opt} style={{background:'#000'}}>{opt}</option>)}
-              </select>
-            </div>
-          ))}
-          <div style={{ background: '#111', padding: '10px', borderRadius: '12px', border: '1px solid #333' }}>
-            <label style={{ color: '#FFD700', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>BUSCAR</label>
-            <input type="text" placeholder="Escriba..." style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px' }} onChange={e => setBusqueda(e.target.value)} />
-          </div>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px 25px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <img src="/logo-canguro.png" alt="Logo" style={{ height: '45px' }} />
+          <h1 style={{ color: '#FFD700', fontSize: '18px', margin: 0, fontWeight: '900' }}>PLANIFICACIÓN DÍAS LIBRES</h1>
         </div>
+        
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={handleGuardarPermanente} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '900', fontSize: '13px' }}>
+              <Save size={18} /> GUARDAR CAMBIOS
+          </button>
+          <button onClick={exportarExcel} style={{ background: '#FFD700', color: '#000', border: 'none', padding: '10px 20px', borderRadius: '12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '900', fontSize: '13px' }}>
+              <FileSpreadsheet size={18} /> EXPORTAR BDD
+          </button>
+          <button onClick={() => setIsLoggedIn(false)} style={{ background: 'none', border: '1px solid #FF4444', color: '#FF4444', padding: '8px', borderRadius: '12px', cursor: 'pointer' }}>
+              <LogOut size={20} />
+          </button>
+        </div>
+      </header>
 
-        {/* TABLA */}
-        <div key={`${mes}-${semana}`} style={{ background: '#080808', borderRadius: '15px', border: '1px solid #222', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <thead>
-              <tr style={{ background: '#000', color: '#FFD700', borderBottom: '2px solid #FFD700' }}>
-                <th style={{ padding: '15px', textAlign: 'left', width: '300px', fontSize: '13px' }}>COLABORADOR</th>
-                <th style={{ width: '180px', fontSize: '13px' }}>SEDE</th>
-                <th style={{ width: '130px', fontSize: '13px' }}>SRT</th>
-                {nombresDias.map((d, i) => (
-                  <th key={i} style={{ width: '95px', fontSize: '12px' }}>{d} {numerosDias[i]}</th>
-                ))}
-              </tr>
-              <tr style={{ background: '#151515', color: '#00FF00' }}>
-                <td colSpan="3" style={{ textAlign: 'right', padding: '12px 25px', fontWeight: '900', fontSize: '12px', color: '#FFD700' }}>PERSONAS LIBRANDO:</td>
-                {numerosDias.map((n, i) => {
-                  const libres = empleadosVisibles.reduce((acc, emp) => asistencia[`${emp.cedula || emp.Cedula}-${n}`] === 'LIBRE' ? acc + 1 : acc, 0);
-                  return <td key={i} style={{ textAlign: 'center', fontWeight: '900', fontSize: '18px' }}>{libres}</td>;
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {empleadosVisibles.map(emp => {
-                const id = emp.cedula || emp.Cedula;
-                return (
-                  <tr key={id} style={{ borderBottom: '1px solid #111' }}>
-                    <td style={{ padding: '15px 20px' }}>
-                      <div style={{ fontWeight: '800', fontSize: '15px', color: '#fff' }}>{emp.nombre || emp.Nombre}</div>
-                      <div style={{ fontSize: '10px', color: '#888' }}>CI: {id}</div>
-                    </td>
-                    <td style={{ textAlign: 'center', color: '#aaa', fontSize: '12px' }}>{emp.Sede}</td>
-                    <td style={{ textAlign: 'center', color: '#FFD700', fontSize: '11px', fontWeight: 'bold' }}>{emp.SRT}</td>
-                    {numerosDias.map((n, i) => {
-                      const val = asistencia[`${id}-${n}`] || 'LABORAL';
-                      return (
-                        <td key={i} style={{ padding: '6px', textAlign: 'center' }}>
-                          <select 
-                            value={val} 
-                            autoComplete="off"
-                            onChange={e => setAsistencia({...asistencia, [`${id}-${n}`]: e.target.value})}
-                            style={{ width: '95%', background: '#000', border: '1px solid #333', color: val==='LIBRE'?'#00FF00':'#fff', borderRadius: '8px', fontSize: '11px', padding: '8px 2px', textAlign: 'center', fontWeight: 'bold' }}
-                          >
-                            <option value="LABORAL">LABORAL</option>
-                            <option value="LIBRE">LIBRE</option>
-                          </select>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+      {/* FILTROS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '25px' }}>
+        {[
+          { label: 'MES', value: mes, func: setMes, list: MESES_ANIO },
+          { label: 'SRT', value: srtFiltro, func: (v) => {setSrtFiltro(v); setRegionFiltro('TODAS'); setSedeFiltro('TODAS');}, list: listaSRT },
+          { label: 'REGIÓN', value: regionFiltro, func: (v) => {setRegionFiltro(v); setSedeFiltro('TODAS')}, list: listaRegiones },
+          { label: 'SEDE', value: sedeFiltro, func: setSedeFiltro, list: listaSedes },
+          { label: 'SEMANA', value: semana, func: setSemana, list: SEMANAS_MES }
+        ].map((f, i) => (
+          <div key={i} style={{ background: '#111', padding: '12px', borderRadius: '15px', border: '1px solid #333' }}>
+            <label style={{ color: '#FFD700', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>{f.label}</label>
+            <select value={f.value} onChange={e => f.func(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '14px', fontWeight: 'bold' }}>
+              {f.list.map(opt => <option key={opt} value={opt} style={{background:'#000'}}>{opt}</option>)}
+            </select>
+          </div>
+        ))}
+        <div style={{ background: '#111', padding: '12px', borderRadius: '15px', border: '1px solid #333' }}>
+          <label style={{ color: '#FFD700', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>BUSCAR CI / NOMBRE</label>
+          <input type="text" placeholder="Escriba aquí..." style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '14px' }} onChange={e => setBusqueda(e.target.value)} />
         </div>
       </div>
 
-      <footer style={{ textAlign: 'center', padding: '20px 0', borderTop: '1px solid #222', marginTop: '20px' }}>
-        <p style={{ color: '#666', fontSize: '11px', fontWeight: 'bold' }}>
+      {/* TABLA COMPLETA SIN LÍMITES */}
+      <div style={{ background: '#080808', borderRadius: '20px', border: '1px solid #222', overflow: 'hidden' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+          <thead>
+            <tr style={{ background: '#000', color: '#FFD700', borderBottom: '2px solid #FFD700' }}>
+              <th style={{ padding: '20px', textAlign: 'left', width: '350px' }}>DATOS DEL COLABORADOR</th>
+              <th style={{ width: '200px' }}>SEDE</th>
+              {nombresDias.map((d, i) => (
+                <th key={i} style={{ width: '110px', fontSize: '13px' }}>{d} {numerosDias[i]}</th>
+              ))}
+            </tr>
+            <tr style={{ background: '#111', color: '#00FF00' }}>
+              <td colSpan="2" style={{ textAlign: 'right', padding: '15px 30px', fontWeight: '900', color: '#FFD700' }}>PERSONAS LIBRANDO:</td>
+              {numerosDias.map((n, i) => {
+                const libres = empleadosVisibles.reduce((acc, emp) => asistencia[`${emp.cedula || emp.Cedula}-${n}`] === 'LIBRE' ? acc + 1 : acc, 0);
+                return <td key={i} style={{ textAlign: 'center', fontWeight: '900', fontSize: '22px' }}>{libres}</td>;
+              })}
+            </tr>
+          </thead>
+          <tbody>
+            {empleadosVisibles.map(emp => {
+              const id = emp.cedula || emp.Cedula;
+              return (
+                <tr key={id} style={{ borderBottom: '1px solid #151515' }}>
+                  <td style={{ padding: '18px 25px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '16px', color: '#fff', marginBottom: '4px' }}>{emp.nombre || emp.Nombre}</div>
+                    <div style={{ fontSize: '11px', color: '#FFD700', fontWeight: 'bold' }}>
+                      CI: {id} | <span style={{ color: '#888' }}>{emp.Cargo || "PERSONAL"}</span>
+                    </div>
+                  </td>
+                  <td style={{ textAlign: 'center', color: '#999', fontSize: '13px', fontWeight: 'bold' }}>{emp.Sede}</td>
+                  {numerosDias.map((n, i) => {
+                    const val = asistencia[`${id}-${n}`] || 'LABORAL';
+                    return (
+                      <td key={i} style={{ padding: '8px', textAlign: 'center' }}>
+                        <select 
+                          value={val} 
+                          autoComplete="off"
+                          onChange={e => setAsistencia({...asistencia, [`${id}-${n}`]: e.target.value})}
+                          style={{ 
+                            width: '100%', background: '#000', border: '1.5px solid #333', 
+                            color: val === 'LIBRE' ? '#00FF00' : '#fff', 
+                            borderRadius: '10px', fontSize: '12px', padding: '10px 2px', 
+                            textAlign: 'center', fontWeight: 'bold', cursor: 'pointer' 
+                          }}
+                        >
+                          <option value="LABORAL">LABORAL</option>
+                          <option value="LIBRE">LIBRE</option>
+                        </select>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+
+      <footer style={{ textAlign: 'center', padding: '30px 0', marginTop: 'auto' }}>
+        <p style={{ color: '#444', fontSize: '12px', fontWeight: 'bold' }}>
           Dirección de Tecnología - Canguro Venezuela {anioActual}
         </p>
       </footer>
