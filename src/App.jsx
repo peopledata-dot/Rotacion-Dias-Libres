@@ -27,7 +27,7 @@ const App = () => {
     return guardado ? JSON.parse(guardado) : {};
   });
 
-  const nombresDias = ['Lu', 'Ma', 'Mi', 'Ju', 'Vi', 'Sá', 'Do'];
+  const nombresDias = ['Lunes', 'Martes', 'Miercoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const numerosDias = obtenerDiasDelMes(mes, semana);
   const anioActual = new Date().getFullYear();
 
