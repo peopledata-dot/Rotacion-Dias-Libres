@@ -20,7 +20,12 @@ const App = () => {
   const [sedeFiltro, setSedeFiltro] = useState('TODAS');
   
   const [busqueda, setBusqueda] = useState('');
-  const [asistencia, setAsistencia] = useState({});
+
+  // --- LÓGICA DE CARGA INICIAL DESDE LOCALSTORAGE ---
+  const [asistencia, setAsistencia] = useState(() => {
+    const persistencia = localStorage.getItem('asistencia_canguro_v1');
+    return persistencia ? JSON.parse(persistencia) : {};
+  });
 
   const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const numerosDias = obtenerDiasDelMes(mes, semana);
@@ -61,9 +66,10 @@ const App = () => {
     }
   };
 
+  // --- FUNCIÓN DE GUARDADO PERMANENTE ---
   const handleGuardar = () => {
-    alert("Datos guardados temporalmente en el sistema.");
-    console.log("Datos de asistencia:", asistencia);
+    localStorage.setItem('asistencia_canguro_v1', JSON.stringify(asistencia));
+    alert("✅ Planificación guardada permanentemente en este equipo.");
   };
 
   const exportarExcel = () => {
@@ -76,7 +82,7 @@ const App = () => {
         emp.SRT, 
         emp.Sede, 
         emp.Cargo, 
-        ...numerosDias.map(n => asistencia[`${id}-${n}`] || 'LABORAL')
+        ...numerosDias.map(n => asistencia[`${id}-${mes}-${semana}-${n}`] || 'LABORAL')
       ];
     });
     
@@ -158,7 +164,7 @@ const App = () => {
           ))}
           <div style={{ background: '#111', padding: '10px', borderRadius: '12px', border: '1px solid #333' }}>
             <label style={{ color: '#FFD700', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>BUSCAR</label>
-            <input type="text" placeholder="Escriba..." style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px' }} onChange={e => setBusqueda(e.target.value)} />
+            <input type="text" placeholder="Escriba..." style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px' }} value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           </div>
         </div>
 
@@ -177,7 +183,7 @@ const App = () => {
               <tr style={{ background: '#151515', color: '#00FF00' }}>
                 <td colSpan="3" style={{ textAlign: 'right', padding: '12px 25px', fontWeight: '900', fontSize: '12px', color: '#FFD700' }}>PERSONAS LIBRANDO:</td>
                 {numerosDias.map((n, i) => {
-                  const libres = empleadosVisibles.reduce((acc, emp) => asistencia[`${emp.cedula || emp.Cedula}-${n}`] === 'LIBRE' ? acc + 1 : acc, 0);
+                  const libres = empleadosVisibles.reduce((acc, emp) => asistencia[`${emp.cedula || emp.Cedula}-${mes}-${semana}-${n}`] === 'LIBRE' ? acc + 1 : acc, 0);
                   return <td key={i} style={{ textAlign: 'center', fontWeight: '900', fontSize: '18px' }}>{libres}</td>;
                 })}
               </tr>
@@ -194,14 +200,16 @@ const App = () => {
                     <td style={{ textAlign: 'center', color: '#aaa', fontSize: '12px' }}>{emp.Sede}</td>
                     <td style={{ textAlign: 'center', color: '#FFD700', fontSize: '11px', fontWeight: 'bold' }}>{emp.SRT}</td>
                     {numerosDias.map((n, i) => {
-                      const val = asistencia[`${id}-${n}`] || 'LABORAL';
+                      // CLAVE ÚNICA: Incluye Mes y Semana para que no se pisen los datos
+                      const keyID = `${id}-${mes}-${semana}-${n}`;
+                      const val = asistencia[keyID] || 'LABORAL';
                       return (
                         <td key={i} style={{ padding: '6px', textAlign: 'center' }}>
                           <select 
                             value={val} 
                             autoComplete="off"
-                            onChange={e => setAsistencia({...asistencia, [`${id}-${n}`]: e.target.value})}
-                            style={{ width: '95%', background: '#000', border: '1px solid #333', color: val==='LIBRE'?'#00FF00':'#fff', borderRadius: '8px', fontSize: '11px', padding: '8px 2px', textAlign: 'center', fontWeight: 'bold' }}
+                            onChange={e => setAsistencia({...asistencia, [keyID]: e.target.value})}
+                            style={{ width: '95%', background: '#000', border: '1px solid #333', color: val==='LIBRE'?'#00FF00':'#fff', borderRadius: '8px', fontSize: '11px', padding: '8px 2px', textAlign: 'center', fontWeight: 'bold', cursor: 'pointer' }}
                           >
                             <option value="LABORAL">LABORAL</option>
                             <option value="LIBRE">LIBRE</option>
