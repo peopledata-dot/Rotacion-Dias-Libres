@@ -102,10 +102,8 @@ const App = () => {
     }
   };
 
-  // --- FUNCIÓN EXPORTAR A EXCEL ---
   const exportarExcel = () => {
     const encabezados = ["COLABORADOR", "CÉDULA", "SRT", "SEDE", ...nombresDias.map((d, i) => `${d} ${numerosDias[i] || ''}`)];
-    
     const filas = empleadosVisibles.map(emp => {
       const id = emp.Cedula || emp.cedula;
       const statusDias = numerosDias.map(n => asistencia[`${id}-${mes}-${semana}-${n}`] || 'LABORAL');
@@ -115,14 +113,12 @@ const App = () => {
     const dataFinal = [encabezados, ...filas];
     const ws = XLSStyle.utils.aoa_to_sheet(dataFinal);
 
-    // Estilos de celdas
     const headerStyle = {
       font: { bold: true, color: { rgb: "000000" } },
       fill: { fgColor: { rgb: "FFD700" } },
       border: { outline: { style: "thin", color: { rgb: "000000" } } }
     };
 
-    // Aplicar estilos a encabezados
     encabezados.forEach((_, i) => {
       const cellRef = XLSStyle.utils.encode_cell({ r: 0, c: i });
       if (ws[cellRef]) ws[cellRef].s = headerStyle;
@@ -147,12 +143,22 @@ const App = () => {
 
   if (!isLoggedIn) {
     return (
-      <div style={{ background: '#000', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif' }}>
-        <div style={{ background: '#111', padding: '40px', borderRadius: '25px', border: '2px solid #FFD700', width: '350px', textAlign: 'center' }}>
-          <h2 style={{ color: '#FFD700', marginBottom: '30px' }}>SISTEMA SRT GLOBAL</h2>
+      <div style={{ 
+        backgroundImage: "url('/BOT.png')", 
+        backgroundSize: 'cover',
+        backgroundPosition: 'center',
+        height: '100vh', 
+        display: 'flex', 
+        justifyContent: 'center', 
+        alignItems: 'center', 
+        fontFamily: 'sans-serif' 
+      }}>
+        <div style={{ background: 'rgba(17, 17, 17, 0.9)', padding: '40px', borderRadius: '25px', border: '2px solid #FFD700', width: '350px', textAlign: 'center', backdropFilter: 'blur(5px)' }}>
+          <img src="/logo-canguro.png" alt="Logo Canguro" style={{ width: '180px', marginBottom: '20px' }} />
+          <h2 style={{ color: '#FFD700', marginBottom: '30px', fontWeight: '900' }}>SISTEMA SRT GLOBAL</h2>
           <form onSubmit={(e) => { e.preventDefault(); if (loginData.usuario === 'SRTCanguro' && loginData.password === 'CanguroADM*') setIsLoggedIn(true); else setErrorLogin(true); }} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <input type="text" placeholder="Usuario" style={{ padding: '12px', borderRadius: '8px' }} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
-            <input type="password" placeholder="Password" style={{ padding: '12px', borderRadius: '8px' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
+            <input type="text" placeholder="Usuario" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #333', background: '#222', color: '#fff' }} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
+            <input type="password" placeholder="Password" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #333', background: '#222', color: '#fff' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
             {errorLogin && <p style={{ color: '#ff4444', fontSize: '12px' }}>Credenciales incorrectas</p>}
             <button style={{ padding: '15px', background: '#FFD700', color: '#000', fontWeight: 'bold', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>ENTRAR</button>
           </form>
@@ -165,7 +171,8 @@ const App = () => {
     <div style={{ backgroundColor: '#050505', minHeight: '100vh', display: 'flex', flexDirection: 'column', color: '#fff', padding: '20px', fontFamily: 'sans-serif' }}>
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px 25px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-          <div>
+          <img src="/logo-canguro.png" alt="Logo" style={{ height: '45px' }} />
+          <div style={{ borderLeft: '1px solid #333', paddingLeft: '20px' }}>
             <h1 style={{ color: '#FFD700', fontSize: '18px', margin: 0, fontWeight: '900' }}>CANGURO - PLANIFICACIÓN</h1>
             <div style={{ color: online ? '#00FF00' : '#ff4444', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
                {online ? <ShieldCheck size={12}/> : <Cloud size={12}/>} {online ? 'SISTEMA ONLINE' : 'SIN CONEXIÓN'}
