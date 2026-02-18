@@ -18,22 +18,18 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// --- LÓGICA DE FECHAS INTEGRADA (Evita error de importación) ---
+// --- LÓGICA DE FECHAS ---
 const obtenerDiasDelMesLocal = (mes, semana) => {
   const anio = new Date().getFullYear();
   const mesesNum = {
     'Enero': 0, 'Febrero': 1, 'Marzo': 2, 'Abril': 3, 'Mayo': 4, 'Junio': 5,
     'Julio': 6, 'Agosto': 7, 'Septiembre': 8, 'Octubre': 9, 'Noviembre': 10, 'Diciembre': 11
   };
-  
-  const primerDiaMes = new Date(anio, mesesNum[mes], 1);
   const ultimoDiaMes = new Date(anio, mesesNum[mes] + 1, 0);
   const totalDias = ultimoDiaMes.getDate();
-  
   const todosLosDias = Array.from({ length: totalDias }, (_, i) => i + 1);
   const numSemana = parseInt(semana.split(' ')[1]);
   const inicio = (numSemana - 1) * 7;
-  
   return todosLosDias.slice(inicio, inicio + 7);
 };
 
@@ -57,9 +53,7 @@ const App = () => {
 
   const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const numerosDias = obtenerDiasDelMesLocal(mes, semana);
-  const anioActual = new Date().getFullYear();
 
-  // 1. ESCUCHAR CAMBIOS EN TIEMPO REAL
   useEffect(() => {
     if (isLoggedIn) {
       const asistenciaRef = ref(db, 'asistencia_canguro');
@@ -73,7 +67,6 @@ const App = () => {
     }
   }, [isLoggedIn]);
 
-  // 2. CARGA DE EMPLEADOS (GOOGLE SHEETS)
   useEffect(() => {
     if (isLoggedIn) {
       const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19i5pwrIx8RX0P2OkE1qY2o5igKvvv2hxUuvb9jM_8LE/gviz/tq?tqx=out:json&gid=839594636';
@@ -97,28 +90,49 @@ const App = () => {
     }
   }, [isLoggedIn]);
 
-  const handleLogin = (e) => {
-    e.preventDefault();
-    if (loginData.usuario === 'SRTCanguro' && loginData.password === 'CanguroADM*') {
-      setIsLoggedIn(true);
-    } else {
-      setErrorLogin(true);
-    }
-  };
-
   const handleGuardar = async () => {
     setIsSaving(true);
     try {
       await set(ref(db, 'asistencia_canguro'), asistencia);
-      alert("✅ Sincronización exitosa con la Nube.");
+      alert("✅ Sincronización exitosa.");
     } catch (error) {
-      alert("❌ Error de permisos o conexión.");
+      alert("❌ Error de conexión.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  // Lógica de Filtros
+  // --- FUNCIÓN EXPORTAR A EXCEL ---
+  const exportarExcel = () => {
+    const encabezados = ["COLABORADOR", "CÉDULA", "SRT", "SEDE", ...nombresDias.map((d, i) => `${d} ${numerosDias[i] || ''}`)];
+    
+    const filas = empleadosVisibles.map(emp => {
+      const id = emp.Cedula || emp.cedula;
+      const statusDias = numerosDias.map(n => asistencia[`${id}-${mes}-${semana}-${n}`] || 'LABORAL');
+      return [emp.Nombre || emp.nombre, id, emp.SRT, emp.Sede, ...statusDias];
+    });
+
+    const dataFinal = [encabezados, ...filas];
+    const ws = XLSStyle.utils.aoa_to_sheet(dataFinal);
+
+    // Estilos de celdas
+    const headerStyle = {
+      font: { bold: true, color: { rgb: "000000" } },
+      fill: { fgColor: { rgb: "FFD700" } },
+      border: { outline: { style: "thin", color: { rgb: "000000" } } }
+    };
+
+    // Aplicar estilos a encabezados
+    encabezados.forEach((_, i) => {
+      const cellRef = XLSStyle.utils.encode_cell({ r: 0, c: i });
+      if (ws[cellRef]) ws[cellRef].s = headerStyle;
+    });
+
+    const wb = XLSStyle.utils.book_new();
+    XLSStyle.utils.book_append_sheet(wb, ws, "Planificación");
+    XLSStyle.writeFile(wb, `Planificacion_${mes}_${semana}.xlsx`);
+  };
+
   const listaSRT = ['TODAS', ...new Set(empleados.map(emp => emp.SRT).filter(Boolean))];
   const listaRegiones = ['TODAS', ...new Set(empleados.filter(e => srtFiltro === 'TODAS' || e.SRT === srtFiltro).map(e => e.Region).filter(Boolean))];
   const listaSedes = ['TODAS', ...new Set(empleados.filter(e => (srtFiltro === 'TODAS' || e.SRT === srtFiltro) && (regionFiltro === 'TODAS' || e.Region === regionFiltro)).map(e => e.Sede).filter(Boolean))];
@@ -128,8 +142,7 @@ const App = () => {
     const cumpleReg = regionFiltro === 'TODAS' || emp.Region === regionFiltro;
     const cumpleSed = sedeFiltro === 'TODAS' || emp.Sede === sedeFiltro;
     const term = busqueda.toLowerCase();
-    const cumpleBusq = (emp.Nombre || "").toString().toLowerCase().includes(term) || (emp.Cedula || "").toString().includes(term);
-    return cumpleSRT && cumpleReg && cumpleSed && cumpleBusq;
+    return cumpleSRT && cumpleReg && cumpleSed && ((emp.Nombre || "").toString().toLowerCase().includes(term) || (emp.Cedula || "").toString().includes(term));
   });
 
   if (!isLoggedIn) {
@@ -137,9 +150,9 @@ const App = () => {
       <div style={{ background: '#000', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif' }}>
         <div style={{ background: '#111', padding: '40px', borderRadius: '25px', border: '2px solid #FFD700', width: '350px', textAlign: 'center' }}>
           <h2 style={{ color: '#FFD700', marginBottom: '30px' }}>SISTEMA SRT GLOBAL</h2>
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <input type="text" placeholder="Usuario" style={{ padding: '12px', borderRadius: '8px', border: 'none' }} value={loginData.usuario} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
-            <input type="password" placeholder="Password" style={{ padding: '12px', borderRadius: '8px', border: 'none' }} value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
+          <form onSubmit={(e) => { e.preventDefault(); if (loginData.usuario === 'SRTCanguro' && loginData.password === 'CanguroADM*') setIsLoggedIn(true); else setErrorLogin(true); }} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <input type="text" placeholder="Usuario" style={{ padding: '12px', borderRadius: '8px' }} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
+            <input type="password" placeholder="Password" style={{ padding: '12px', borderRadius: '8px' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
             {errorLogin && <p style={{ color: '#ff4444', fontSize: '12px' }}>Credenciales incorrectas</p>}
             <button style={{ padding: '15px', background: '#FFD700', color: '#000', fontWeight: 'bold', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>ENTRAR</button>
           </form>
@@ -155,15 +168,18 @@ const App = () => {
           <div>
             <h1 style={{ color: '#FFD700', fontSize: '18px', margin: 0, fontWeight: '900' }}>CANGURO - PLANIFICACIÓN</h1>
             <div style={{ color: online ? '#00FF00' : '#ff4444', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-               {online ? <ShieldCheck size={12}/> : <Cloud size={12}/>} {online ? 'CONECTADO EN TIEMPO REAL' : 'SIN CONEXIÓN'}
+               {online ? <ShieldCheck size={12}/> : <Cloud size={12}/>} {online ? 'SISTEMA ONLINE' : 'SIN CONEXIÓN'}
             </div>
           </div>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={handleGuardar} disabled={isSaving} style={{ background: isSaving ? '#444' : '#28a745', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-              <Save size={16} /> {isSaving ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
+          <button onClick={handleGuardar} disabled={isSaving} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+              <Save size={16} /> {isSaving ? '...' : 'GUARDAR'}
           </button>
-          <button onClick={() => setIsLoggedIn(false)} style={{ background: '#ff4444', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer' }}>
+          <button onClick={exportarExcel} style={{ background: '#FFD700', color: '#000', border: 'none', padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
+              <FileSpreadsheet size={16} /> EXPORTAR EXCEL
+          </button>
+          <button onClick={() => setIsLoggedIn(false)} style={{ background: '#ff4444', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '10px', cursor: 'pointer' }}>
               <LogOut size={16} />
           </button>
         </div>
@@ -187,7 +203,7 @@ const App = () => {
         ))}
         <div style={{ background: '#111', padding: '10px', borderRadius: '12px', border: '1px solid #333' }}>
           <label style={{ color: '#FFD700', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>BUSCAR</label>
-          <input type="text" placeholder="Cédula/Nombre..." style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '12px' }} value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+          <input type="text" placeholder="Cédula/Nombre..." style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '12px' }} onChange={e => setBusqueda(e.target.value)} />
         </div>
       </div>
 
@@ -237,7 +253,7 @@ const App = () => {
                           style={{ 
                             width: '100%', background: '#000', border: '1px solid #333', 
                             color: val === 'LIBRE' ? '#0f0' : val === 'REPOSO' ? '#f44' : val === 'PERMISO' ? '#3498db' : '#fff', 
-                            borderRadius: '5px', fontSize: '10px', padding: '6px 2px', fontWeight: 'bold'
+                            borderRadius: '5px', fontSize: '10px', padding: '6px 2px', fontWeight: 'bold', cursor: 'pointer'
                           }}
                         >
                           <option value="LABORAL">LABORAL</option>
