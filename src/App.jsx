@@ -1,21 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import XLSStyle from 'xlsx-js-style';
-import { FileSpreadsheet, LogOut, Save, Search, Users, Calendar, MapPin, Cloud } from 'lucide-react';
+import { FileSpreadsheet, LogOut, Save, Cloud, RefreshCw } from 'lucide-react';
 import { obtenerDiasDelMes } from './fechas';
 
-// --- NUEVA IMPORTACIÓN DE FIREBASE ---
+// --- CONFIGURACIÓN DE FIREBASE (Tus datos reales) ---
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, onValue } from "firebase/database";
 
-// CONFIGURACIÓN DE TU PROYECTO (Reemplaza con tus llaves de Firebase Console)
 const firebaseConfig = {
-  apiKey: "TU_API_KEY",
-  authDomain: "tu-app.firebaseapp.com",
-  databaseURL: "https://tu-app-default-rtdb.firebaseio.com", // IMPORTANTE: Termina en .firebaseio.com
-  projectId: "tu-app",
-  storageBucket: "tu-app.appspot.com",
-  messagingSenderId: "123456789",
-  appId: "1:123456789:web:abcdef"
+  apiKey: "AIzaSyA0D6uB6dID2UySULeacwMsUxO-HUL5Qc4",
+  authDomain: "rotacion-dias-libres-canguro.firebaseapp.com",
+  databaseURL: "https://rotacion-dias-libres-canguro-default-rtdb.firebaseio.com",
+  projectId: "rotacion-dias-libres-canguro",
+  storageBucket: "rotacion-dias-libres-canguro.firebasestorage.app",
+  messagingSenderId: "545579480005",
+  appId: "1:545579480005:web:d5208e164ed992b32051ac",
+  measurementId: "G-7LZN80HZ19"
 };
 
 const app = initializeApp(firebaseConfig);
@@ -28,41 +28,33 @@ const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginData, setLoginData] = useState({ usuario: '', password: '' });
   const [errorLogin, setErrorLogin] = useState(false);
-  
   const [empleados, setEmpleados] = useState([]);
   const [mes, setMes] = useState('Febrero');
   const [semana, setSemana] = useState('Semana 1');
-  
   const [srtFiltro, setSrtFiltro] = useState('TODAS');
   const [regionFiltro, setRegionFiltro] = useState('TODAS');
   const [sedeFiltro, setSedeFiltro] = useState('TODAS');
-  
   const [busqueda, setBusqueda] = useState('');
-  
-  // Estado de asistencia ahora se sincroniza con Firebase
   const [asistencia, setAsistencia] = useState({});
-  const [sincronizando, setSincronizando] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const numerosDias = obtenerDiasDelMes(mes, semana);
   const anioActual = new Date().getFullYear();
 
-  // --- LÓGICA DE FIREBASE: ESCUCHAR CAMBIOS DE OTROS ---
+  // 1. SINCRONIZACIÓN EN TIEMPO REAL CON FIREBASE
   useEffect(() => {
     if (isLoggedIn) {
-      const dbRef = ref(db, 'asistencia_global');
-      // onValue detecta cuando cualquier persona cambia algo en la base de datos
-      const unsubscribe = onValue(dbRef, (snapshot) => {
+      const asistenciaRef = ref(db, 'asistencia_global');
+      const unsubscribe = onValue(asistenciaRef, (snapshot) => {
         const data = snapshot.val();
-        if (data) {
-          setAsistencia(data);
-        }
+        if (data) setAsistencia(data);
       });
-      return () => unsubscribe(); // Limpiar conexión al salir
+      return () => unsubscribe();
     }
   }, [isLoggedIn]);
 
-  // --- TU LÓGICA DE GOOGLE SHEETS (SIN CAMBIOS) ---
+  // 2. CARGA DE EMPLEADOS DESDE GOOGLE SHEETS
   useEffect(() => {
     if (isLoggedIn) {
       const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19i5pwrIx8RX0P2OkE1qY2o5igKvvv2hxUuvb9jM_8LE/gviz/tq?tqx=out:json&gid=839594636';
@@ -98,19 +90,19 @@ const App = () => {
     }
   };
 
-  // --- FUNCIÓN DE GUARDADO HACIA FIREBASE (GLOBAL) ---
+  // 3. GUARDADO GLOBAL (Afecta a todos los usuarios)
   const handleGuardar = async () => {
-    setSincronizando(true);
+    setIsSaving(true);
     try {
       await set(ref(db, 'asistencia_global'), asistencia);
-      alert("✅ Sincronizado: Los cambios ahora son visibles para todos.");
+      alert("✅ Datos sincronizados correctamente para todos los SRT.");
     } catch (error) {
-      alert("❌ Error al guardar en la nube: " + error.message);
+      alert("❌ Error de permisos: Verifica las reglas en la consola de Firebase.");
+      console.error(error);
     }
-    setSincronizando(false);
+    setIsSaving(false);
   };
 
-  // --- LÓGICA DE EXCEL Y FILTROS (SIN CAMBIOS) ---
   const exportarExcel = () => {
     const encabezados = ["COLABORADOR", "ID", "SRT", "SEDE", "CARGO", ...nombresDias.map((d, i) => `${d} ${numerosDias[i]}`)];
     const filas = empleadosVisibles.map(emp => {
@@ -123,7 +115,7 @@ const App = () => {
     const wb = XLSStyle.utils.book_new();
     const ws = XLSStyle.utils.aoa_to_sheet([encabezados, ...filas]);
     XLSStyle.utils.book_append_sheet(wb, ws, "Asistencia");
-    XLSStyle.writeFile(wb, `Planificacion_${mes}_${semana}.xlsx`);
+    XLSStyle.writeFile(wb, `Reporte_${mes}_${semana}.xlsx`);
   };
 
   const listaSRT = ['TODAS', ...new Set(empleados.map(emp => emp.SRT).filter(Boolean))];
@@ -139,131 +131,131 @@ const App = () => {
     return cumpleSRT && cumpleReg && cumpleSed && cumpleBusq;
   });
 
-  // (Componente de Login idéntico al tuyo...)
   if (!isLoggedIn) {
     return (
-        <div style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('/BOT.png')`, backgroundSize: 'cover', backgroundPosition: 'center', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif' }}>
-          <div style={{ background: 'rgba(10,10,10,0.95)', padding: '50px 20px', borderRadius: '35px', border: '2px solid #FFD700', width: '380px', textAlign: 'center', marginBottom: '20px' }}>
-            <img src="/logo-canguro.png" alt="Logo" style={{ height: '80px', marginBottom: '30px' }} />
-            <h2 style={{ color: '#FFD700', fontSize: '20px', fontWeight: '900', marginBottom: '35px', letterSpacing: '1px' }}>ACCESO RESTRINGIDO</h2>
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
-              <input type="text" placeholder="Usuario" style={{ width: '85%', padding: '14px 18px', background: '#e8f0fe', border: 'none', color: '#000', borderRadius: '12px', outline: 'none', fontSize: '16px' }} value={loginData.usuario} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
-              <input type="password" placeholder="Password" style={{ width: '85%', padding: '14px 18px', background: '#e8f0fe', border: 'none', color: '#000', borderRadius: '12px', outline: 'none', fontSize: '16px' }} value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
-              {errorLogin && <p style={{ color: '#ff4444', fontSize: '13px' }}>Credenciales incorrectas</p>}
-              <button style={{ width: '90%', padding: '15px', background: '#FFD700', color: '#000', fontWeight: '900', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '16px', marginTop: '15px' }}>ENTRAR</button>
-            </form>
-          </div>
-          <p style={{ color: '#fff', fontSize: '11px', fontWeight: 'bold', letterSpacing: '0.5px', opacity: 0.8 }}>Dirección de Tecnología - Canguro Venezuela {anioActual}</p>
+      <div style={{ backgroundImage: `linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('/BOT.png')`, backgroundSize: 'cover', backgroundPosition: 'center', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif' }}>
+        <div style={{ background: 'rgba(10,10,10,0.95)', padding: '50px 20px', borderRadius: '35px', border: '2px solid #FFD700', width: '380px', textAlign: 'center', marginBottom: '20px' }}>
+          <img src="/logo-canguro.png" alt="Logo" style={{ height: '80px', marginBottom: '30px' }} />
+          <h2 style={{ color: '#FFD700', fontSize: '20px', fontWeight: '900', marginBottom: '35px', letterSpacing: '1px' }}>ACCESO RESTRINGIDO</h2>
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+            <input type="text" placeholder="Usuario" style={{ width: '85%', padding: '14px 18px', background: '#e8f0fe', border: 'none', color: '#000', borderRadius: '12px', outline: 'none', fontSize: '16px' }} value={loginData.usuario} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
+            <input type="password" placeholder="Password" style={{ width: '85%', padding: '14px 18px', background: '#e8f0fe', border: 'none', color: '#000', borderRadius: '12px', outline: 'none', fontSize: '16px' }} value={loginData.password} onChange={e => setLoginData({...loginData, password: e.target.value})} />
+            {errorLogin && <p style={{ color: '#ff4444', fontSize: '13px' }}>Credenciales incorrectas</p>}
+            <button style={{ width: '90%', padding: '15px', background: '#FFD700', color: '#000', fontWeight: '900', borderRadius: '12px', border: 'none', cursor: 'pointer', fontSize: '16px', marginTop: '15px' }}>ENTRAR</button>
+          </form>
         </div>
-      );
+      </div>
+    );
   }
 
   return (
     <div style={{ backgroundColor: '#050505', minHeight: '100vh', display: 'flex', flexDirection: 'column', color: '#fff', padding: '20px', fontFamily: 'sans-serif' }}>
-      
-      <div style={{ flex: 1 }}>
-        <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px 25px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
-            <img src="/logo-canguro.png" alt="Logo" style={{ height: '40px' }} />
-            <h1 style={{ color: '#FFD700', fontSize: '18px', margin: 0, fontWeight: '900' }}>PLANIFICACIÓN DÍAS LIBRES</h1>
-            {/* Indicador de conexión */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: '5px', fontSize: '10px', color: '#00FF00', marginLeft: '10px' }}>
-                <Cloud size={12} /> GLOBAL ACTIVO
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px 25px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <img src="/logo-canguro.png" alt="Logo" style={{ height: '40px' }} />
+          <div>
+            <h1 style={{ color: '#FFD700', fontSize: '18px', margin: 0, fontWeight: '900' }}>SISTEMA DE PLANIFICACIÓN GLOBAL</h1>
+            <div style={{ color: '#00FF00', fontSize: '10px', fontWeight: 'bold', display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Cloud size={12}/> CONECTADO A NUBE CANGURO
             </div>
-          </div>
-          
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button onClick={handleGuardar} disabled={sincronizando} style={{ background: sincronizando ? '#555' : '#28a745', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '12px' }}>
-                <Save size={16} /> {sincronizando ? 'GUARDANDO...' : 'GUARDAR GLOBAL'}
-            </button>
-            <button onClick={exportarExcel} style={{ background: '#FFD700', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '12px' }}>
-                <FileSpreadsheet size={16} /> EXPORTAR
-            </button>
-            <button onClick={() => setIsLoggedIn(false)} style={{ background: 'none', border: '1px solid #FF4444', color: '#FF4444', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '12px' }}>
-                <LogOut size={16} /> SALIR
-            </button>
-          </div>
-        </header>
-
-        {/* ... FILTROS (SIN CAMBIOS) ... */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
-          {[
-            { label: 'MES', value: mes, func: setMes, list: MESES_ANIO },
-            { label: 'SRT', value: srtFiltro, func: (v) => {setSrtFiltro(v); setRegionFiltro('TODAS'); setSedeFiltro('TODAS');}, list: listaSRT },
-            { label: 'REGIÓN', value: regionFiltro, func: (v) => {setRegionFiltro(v); setSedeFiltro('TODAS')}, list: listaRegiones },
-            { label: 'SEDE', value: sedeFiltro, func: setSedeFiltro, list: listaSedes },
-            { label: 'SEMANA', value: semana, func: setSemana, list: SEMANAS_MES }
-          ].map((f, i) => (
-            <div key={i} style={{ background: '#111', padding: '10px', borderRadius: '12px', border: '1px solid #333' }}>
-              <label style={{ color: '#FFD700', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>{f.label}</label>
-              <select value={f.value} onChange={e => f.func(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px', fontWeight: 'bold' }}>
-                {f.list.map(opt => <option key={opt} value={opt} style={{background:'#000'}}>{opt}</option>)}
-              </select>
-            </div>
-          ))}
-          <div style={{ background: '#111', padding: '10px', borderRadius: '12px', border: '1px solid #333' }}>
-            <label style={{ color: '#FFD700', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>BUSCAR</label>
-            <input type="text" placeholder="Escriba..." style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px' }} value={busqueda} onChange={e => setBusqueda(e.target.value)} />
           </div>
         </div>
+        
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={handleGuardar} disabled={isSaving} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '12px' }}>
+              <Save size={16} /> {isSaving ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
+          </button>
+          <button onClick={exportarExcel} style={{ background: '#FFD700', color: '#000', border: 'none', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '12px' }}>
+              <FileSpreadsheet size={16} /> EXPORTAR
+          </button>
+          <button onClick={() => setIsLoggedIn(false)} style={{ background: 'none', border: '1px solid #FF4444', color: '#FF4444', padding: '8px 15px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '12px' }}>
+              <LogOut size={16} /> SALIR
+          </button>
+        </div>
+      </header>
 
-        {/* ... TABLA (SIN CAMBIOS) ... */}
-        <div key={`${mes}-${semana}`} style={{ background: '#080808', borderRadius: '15px', border: '1px solid #222', overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
-            <thead>
-              <tr style={{ background: '#000', color: '#FFD700', borderBottom: '2px solid #FFD700' }}>
-                <th style={{ padding: '15px', textAlign: 'left', width: '300px', fontSize: '13px' }}>COLABORADOR</th>
-                <th style={{ width: '180px', fontSize: '13px' }}>SEDE</th>
-                <th style={{ width: '130px', fontSize: '13px' }}>SRT</th>
-                {nombresDias.map((d, i) => (
-                  <th key={i} style={{ width: '95px', fontSize: '12px' }}>{d} {numerosDias[i]}</th>
-                ))}
-              </tr>
-              <tr style={{ background: '#151515', color: '#00FF00' }}>
-                <td colSpan="3" style={{ textAlign: 'right', padding: '12px 25px', fontWeight: '900', fontSize: '12px', color: '#FFD700' }}>PERSONAS LIBRANDO:</td>
-                {numerosDias.map((n, i) => {
-                  const libres = empleadosVisibles.reduce((acc, emp) => asistencia[`${emp.cedula || emp.Cedula}-${mes}-${semana}-${n}`] === 'LIBRE' ? acc + 1 : acc, 0);
-                  return <td key={i} style={{ textAlign: 'center', fontWeight: '900', fontSize: '18px' }}>{libres}</td>;
-                })}
-              </tr>
-            </thead>
-            <tbody>
-              {empleadosVisibles.map(emp => {
-                const id = emp.cedula || emp.Cedula;
-                return (
-                  <tr key={id} style={{ borderBottom: '1px solid #111' }}>
-                    <td style={{ padding: '15px 20px' }}>
-                      <div style={{ fontWeight: '800', fontSize: '15px', color: '#fff' }}>{emp.nombre || emp.Nombre}</div>
-                      <div style={{ fontSize: '10px', color: '#888' }}>CI: {id}</div>
-                    </td>
-                    <td style={{ textAlign: 'center', color: '#aaa', fontSize: '12px' }}>{emp.Sede}</td>
-                    <td style={{ textAlign: 'center', color: '#FFD700', fontSize: '11px', fontWeight: 'bold' }}>{emp.SRT}</td>
-                    {numerosDias.map((n, i) => {
-                      const keyID = `${id}-${mes}-${semana}-${n}`;
-                      const val = asistencia[keyID] || 'LABORAL';
-                      return (
-                        <td key={i} style={{ padding: '6px', textAlign: 'center' }}>
-                          <select 
-                            value={val} 
-                            autoComplete="off"
-                            onChange={e => setAsistencia({...asistencia, [keyID]: e.target.value})}
-                            style={{ width: '95%', background: '#000', border: '1px solid #333', color: val==='LIBRE'?'#00FF00':'#fff', borderRadius: '8px', fontSize: '11px', padding: '8px 2px', textAlign: 'center', fontWeight: 'bold', cursor: 'pointer' }}
-                          >
-                            <option value="LABORAL">LABORAL</option>
-                            <option value="LIBRE">LIBRE</option>
-                            <option value="REPOSO">REPOSO</option>
-                            <option value="EGRESO">EGRESO</option>
-                            <option value="PERMISO">PERMISO</option>
-                          </select>
-                        </td>
-                      );
-                    })}
-                  </tr>
-                );
+      {/* FILTROS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
+        {[
+          { label: 'MES', value: mes, func: setMes, list: MESES_ANIO },
+          { label: 'SRT', value: srtFiltro, func: (v) => {setSrtFiltro(v); setRegionFiltro('TODAS'); setSedeFiltro('TODAS');}, list: listaSRT },
+          { label: 'REGIÓN', value: regionFiltro, func: (v) => {setRegionFiltro(v); setSedeFiltro('TODAS')}, list: listaRegiones },
+          { label: 'SEDE', value: sedeFiltro, func: setSedeFiltro, list: listaSedes },
+          { label: 'SEMANA', value: semana, func: setSemana, list: SEMANAS_MES }
+        ].map((f, i) => (
+          <div key={i} style={{ background: '#111', padding: '10px', borderRadius: '12px', border: '1px solid #333' }}>
+            <label style={{ color: '#FFD700', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>{f.label}</label>
+            <select value={f.value} onChange={e => f.func(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px', fontWeight: 'bold' }}>
+              {f.list.map(opt => <option key={opt} value={opt} style={{background:'#000'}}>{opt}</option>)}
+            </select>
+          </div>
+        ))}
+        <div style={{ background: '#111', padding: '10px', borderRadius: '12px', border: '1px solid #333' }}>
+          <label style={{ color: '#FFD700', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>BUSCAR</label>
+          <input type="text" placeholder="Escriba..." style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px' }} value={busqueda} onChange={e => setBusqueda(e.target.value)} />
+        </div>
+      </div>
+
+      {/* TABLA */}
+      <div key={`${mes}-${semana}`} style={{ background: '#080808', borderRadius: '15px', border: '1px solid #222', overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
+          <thead>
+            <tr style={{ background: '#000', color: '#FFD700', borderBottom: '2px solid #FFD700' }}>
+              <th style={{ padding: '15px', textAlign: 'left', width: '300px', fontSize: '13px' }}>COLABORADOR</th>
+              <th style={{ width: '180px', fontSize: '13px' }}>SEDE</th>
+              <th style={{ width: '130px', fontSize: '13px' }}>SRT</th>
+              {nombresDias.map((d, i) => (
+                <th key={i} style={{ width: '95px', fontSize: '12px' }}>{d} {numerosDias[i]}</th>
+              ))}
+            </tr>
+            <tr style={{ background: '#151515', color: '#00FF00' }}>
+              <td colSpan="3" style={{ textAlign: 'right', padding: '12px 25px', fontWeight: '900', fontSize: '12px', color: '#FFD700' }}>PERSONAS LIBRANDO:</td>
+              {numerosDias.map((n, i) => {
+                const libres = empleadosVisibles.reduce((acc, emp) => asistencia[`${emp.cedula || emp.Cedula}-${mes}-${semana}-${n}`] === 'LIBRE' ? acc + 1 : acc, 0);
+                return <td key={i} style={{ textAlign: 'center', fontWeight: '900', fontSize: '18px' }}>{libres}</td>;
               })}
-            </tbody>
-          </table>
-        </div>
+            </tr>
+          </thead>
+          <tbody>
+            {empleadosVisibles.map(emp => {
+              const id = emp.cedula || emp.Cedula;
+              return (
+                <tr key={id} style={{ borderBottom: '1px solid #111' }}>
+                  <td style={{ padding: '15px 20px' }}>
+                    <div style={{ fontWeight: '800', fontSize: '14px', color: '#fff' }}>{emp.nombre || emp.Nombre}</div>
+                    <div style={{ fontSize: '10px', color: '#888' }}>CI: {id}</div>
+                  </td>
+                  <td style={{ textAlign: 'center', color: '#aaa', fontSize: '12px' }}>{emp.Sede}</td>
+                  <td style={{ textAlign: 'center', color: '#FFD700', fontSize: '11px', fontWeight: 'bold' }}>{emp.SRT}</td>
+                  {numerosDias.map((n, i) => {
+                    const keyID = `${id}-${mes}-${semana}-${n}`;
+                    const val = asistencia[keyID] || 'LABORAL';
+                    return (
+                      <td key={i} style={{ padding: '6px', textAlign: 'center' }}>
+                        <select 
+                          value={val} 
+                          autoComplete="off"
+                          onChange={e => setAsistencia({...asistencia, [keyID]: e.target.value})}
+                          style={{ 
+                            width: '95%', background: '#000', border: '1px solid #333', 
+                            color: val==='LIBRE'?'#00FF00': val==='REPOSO'?'#ff4444':val==='PERMISO'?'#3498db':'#fff', 
+                            borderRadius: '8px', fontSize: '10px', padding: '8px 2px', textAlign: 'center', fontWeight: 'bold', cursor: 'pointer' 
+                          }}
+                        >
+                          <option value="LABORAL">LABORAL</option>
+                          <option value="LIBRE">LIBRE</option>
+                          <option value="REPOSO">REPOSO</option>
+                          <option value="EGRESO">EGRESO</option>
+                          <option value="PERMISO">PERMISO</option>
+                        </select>
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
       </div>
       <footer style={{ textAlign: 'center', padding: '20px 0', borderTop: '1px solid #222', marginTop: '20px' }}>
         <p style={{ color: '#666', fontSize: '11px', fontWeight: 'bold' }}>Dirección de Tecnología - Canguro Venezuela {anioActual}</p>
