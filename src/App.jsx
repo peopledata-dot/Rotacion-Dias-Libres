@@ -213,9 +213,9 @@ const App = () => {
                           >
                             <option value="LABORAL">LABORAL</option>
                             <option value="LIBRE">LIBRE</option>
-                            <option value="LIBRE">REPOSO</option>
-                            <option value="LIBRE">EGRESO</option>
-                            <option value="LIBRE">PERMISO</option>
+                            <option value="REPOSO">REPOSO</option>
+                            <option value="EGRESO">EGRESO</option>
+                            <option value="PERMISO">PERMISO</option>
                           </select>
                         </td>
                       );
