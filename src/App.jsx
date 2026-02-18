@@ -51,6 +51,9 @@ const App = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [online, setOnline] = useState(false);
 
+  // Año actual dinámico
+  const currentYear = new Date().getFullYear();
+
   const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const numerosDias = obtenerDiasDelMesLocal(mes, semana);
 
@@ -144,25 +147,41 @@ const App = () => {
   if (!isLoggedIn) {
     return (
       <div style={{ 
-        backgroundImage: "url('/BOT.png')", 
+        // Aplicamos un overlay oscuro sobre la imagen BOT.png
+        backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), url('/BOT.png')", 
         backgroundSize: 'cover',
         backgroundPosition: 'center',
         height: '100vh', 
         display: 'flex', 
+        flexDirection: 'column',
         justifyContent: 'center', 
         alignItems: 'center', 
         fontFamily: 'sans-serif' 
       }}>
-        <div style={{ background: 'rgba(17, 17, 17, 0.9)', padding: '40px', borderRadius: '25px', border: '2px solid #FFD700', width: '350px', textAlign: 'center', backdropFilter: 'blur(5px)' }}>
+        <div style={{ 
+          background: 'rgba(17, 17, 17, 0.85)', 
+          padding: '40px', 
+          borderRadius: '25px', 
+          border: '2px solid #FFD700', 
+          width: '350px', 
+          textAlign: 'center', 
+          backdropFilter: 'blur(10px)',
+          boxShadow: '0 10px 30px rgba(0,0,0,0.5)'
+        }}>
           <img src="/logo-canguro.png" alt="Logo Canguro" style={{ width: '180px', marginBottom: '20px' }} />
-          <h2 style={{ color: '#FFD700', marginBottom: '30px', fontWeight: '900' }}>SISTEMA SRT GLOBAL</h2>
+          <h2 style={{ color: '#FFD700', marginBottom: '30px', fontWeight: '900', letterSpacing: '1px' }}>SISTEMA SRT GLOBAL</h2>
           <form onSubmit={(e) => { e.preventDefault(); if (loginData.usuario === 'SRTCanguro' && loginData.password === 'CanguroADM*') setIsLoggedIn(true); else setErrorLogin(true); }} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <input type="text" placeholder="Usuario" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #333', background: '#222', color: '#fff' }} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
-            <input type="password" placeholder="Password" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #333', background: '#222', color: '#fff' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
-            {errorLogin && <p style={{ color: '#ff4444', fontSize: '12px' }}>Credenciales incorrectas</p>}
-            <button style={{ padding: '15px', background: '#FFD700', color: '#000', fontWeight: 'bold', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>ENTRAR</button>
+            <input type="text" placeholder="Usuario" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #444', background: '#222', color: '#fff' }} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
+            <input type="password" placeholder="Password" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #444', background: '#222', color: '#fff' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
+            {errorLogin && <p style={{ color: '#ff4444', fontSize: '12px', fontWeight: 'bold' }}>Credenciales incorrectas</p>}
+            <button style={{ padding: '15px', background: '#FFD700', color: '#000', fontWeight: 'bold', borderRadius: '8px', border: 'none', cursor: 'pointer', transition: '0.3s' }}>ENTRAR</button>
           </form>
         </div>
+        
+        {/* Pie de página con año dinámico */}
+        <footer style={{ marginTop: '30px', color: 'rgba(255, 215, 0, 0.8)', fontSize: '13px', fontWeight: 'bold', textAlign: 'center' }}>
+          Dirección de Tecnología - Canguro Venezuela {currentYear}
+        </footer>
       </div>
     );
   }
@@ -215,7 +234,7 @@ const App = () => {
       </div>
 
       {/* TABLA */}
-      <div style={{ background: '#080808', borderRadius: '15px', border: '1px solid #222', overflowX: 'auto' }}>
+      <div style={{ background: '#080808', borderRadius: '15px', border: '1px solid #222', overflowX: 'auto', flex: 1 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <thead>
             <tr style={{ background: '#000', color: '#FFD700', borderBottom: '2px solid #FFD700' }}>
@@ -278,6 +297,11 @@ const App = () => {
           </tbody>
         </table>
       </div>
+      
+      {/* Pie de página en vista interna también */}
+      <footer style={{ marginTop: '20px', color: '#666', fontSize: '11px', textAlign: 'center' }}>
+        Dirección de Tecnología - Canguro Venezuela {currentYear}
+      </footer>
     </div>
   );
 };
