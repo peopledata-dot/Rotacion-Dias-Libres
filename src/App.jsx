@@ -284,8 +284,6 @@ const App = () => {
                         >
                           <option value="LABORAL">LABORAL</option>
                           <option value="LIBRE">LIBRE</option>
-                          <option value="REPOSO">REPOSO</option>
-                          <option value="PERMISO">PERMISO</option>
                           <option value="EGRESO">EGRESO</option>
                           <option value="TIENDA CERRADA">TIENDA CERRADA</option>
                         </select>
