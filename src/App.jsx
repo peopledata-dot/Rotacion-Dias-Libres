@@ -287,6 +287,7 @@ const App = () => {
                           <option value="REPOSO">REPOSO</option>
                           <option value="PERMISO">PERMISO</option>
                           <option value="EGRESO">EGRESO</option>
+                          <option value="TIENDA CERRADA">TIENDA CERRADA</option>
                         </select>
                       </td>
                     );
