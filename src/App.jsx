@@ -29,7 +29,6 @@ const obtenerDiasDelMesLocal = (mesNombre, semanaNombre) => {
   const mesIndex = mesesNum[mesNombre];
   const numSemana = parseInt(semanaNombre.split(' ')[1]);
 
-  // Buscamos el lunes de la semana 1 del mes
   const primerDiaMes = new Date(anio, mesIndex, 1);
   const ajusteLunes = (primerDiaMes.getDay() === 0 ? 6 : primerDiaMes.getDay() - 1);
   const inicioSemana = new Date(anio, mesIndex, 1 - ajusteLunes + (numSemana - 1) * 7);
@@ -63,10 +62,8 @@ const App = () => {
   const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
   const numerosDias = obtenerDiasDelMesLocal(mes, semana);
 
-  // --- CARGA DE DATOS SIN AUTO-RESETEO ---
   useEffect(() => {
     if (isLoggedIn) {
-      // Cargamos de Firebase solo una vez al entrar
       const asistenciaRef = ref(db, 'asistencia_canguro');
       get(asistenciaRef).then((snapshot) => {
         if (snapshot.exists()) {
@@ -75,7 +72,6 @@ const App = () => {
         }
       });
 
-      // Carga de empleados desde Google Sheets
       const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19i5pwrIx8RX0P2OkE1qY2o5igKvvv2hxUuvb9jM_8LE/gviz/tq?tqx=out:json&gid=839594636';
       fetch(SHEET_URL)
         .then(res => res.text())
@@ -137,23 +133,17 @@ const App = () => {
 
   if (!isLoggedIn) {
     return (
-      <div style={{ 
-        backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url('/BOT.png')", 
-        backgroundSize: 'cover', backgroundPosition: 'center', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif' 
-      }}>
-        <div style={{ background: 'rgba(17, 17, 17, 0.9)', padding: '40px', borderRadius: '25px', border: '2px solid #FFD700', width: '350px', textAlign: 'center', backdropFilter: 'blur(10px)', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+      <div style={{ backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), url('/BOT.png')", backgroundSize: 'cover', backgroundPosition: 'center', height: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif' }}>
+        <div style={{ background: 'rgba(17, 17, 17, 0.9)', padding: '40px', borderRadius: '25px', border: '2px solid #FFD700', width: '350px', textAlign: 'center', backdropFilter: 'blur(10px)' }}>
           <img src="/logo-canguro.png" alt="Logo Canguro" style={{ width: '180px', marginBottom: '20px' }} />
           <h2 style={{ color: '#FFD700', marginBottom: '30px', fontWeight: '900' }}>SISTEMA SRT GLOBAL</h2>
           <form onSubmit={(e) => { e.preventDefault(); if (loginData.usuario === 'SRTCanguro' && loginData.password === 'CanguroADM*') setIsLoggedIn(true); else setErrorLogin(true); }} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <input type="text" placeholder="Usuario" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #444', background: '#222', color: '#fff' }} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
             <input type="password" placeholder="Password" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #444', background: '#222', color: '#fff' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
-            {errorLogin && <p style={{ color: '#ff4444', fontSize: '12px', fontWeight: 'bold' }}>Credenciales incorrectas</p>}
+            {errorLogin && <p style={{ color: '#ff4444', fontSize: '12px' }}>Credenciales incorrectas</p>}
             <button style={{ padding: '15px', background: '#FFD700', color: '#000', fontWeight: 'bold', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>ENTRAR</button>
           </form>
         </div>
-        <footer style={{ marginTop: '30px', color: 'rgba(255, 215, 0, 0.8)', fontSize: '13px', fontWeight: 'bold' }}>
-          Dirección de Tecnología - Canguro Venezuela {currentYear}
-        </footer>
       </div>
     );
   }
@@ -163,16 +153,11 @@ const App = () => {
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px 25px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ height: '40px' }} />
-          <div style={{ borderLeft: '1px solid #333', paddingLeft: '20px' }}>
-            <h1 style={{ color: '#FFD700', fontSize: '18px', margin: 0, fontWeight: '900' }}>CANGURO - PLANIFICACIÓN</h1>
-            <div style={{ color: online ? '#00FF00' : '#ff4444', fontSize: '10px', display: 'flex', alignItems: 'center', gap: '5px' }}>
-               {online ? <ShieldCheck size={12}/> : <Cloud size={12}/>} {online ? 'SISTEMA LISTO' : 'CARGANDO...'}
-            </div>
-          </div>
+          <h1 style={{ color: '#FFD700', fontSize: '18px', margin: 0, fontWeight: '900' }}>CANGURO - PLANIFICACIÓN</h1>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={handleGuardar} disabled={isSaving} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
-              <Save size={16} /> {isSaving ? '...' : 'GUARDAR CAMBIOS'}
+              <Save size={16} /> GUARDAR CAMBIOS
           </button>
           <button onClick={exportarExcel} style={{ background: '#FFD700', color: '#000', border: 'none', padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold' }}>
               <FileSpreadsheet size={16} /> EXCEL
@@ -205,7 +190,7 @@ const App = () => {
         </div>
       </div>
 
-      {/* TABLA */}
+      {/* TABLA CON CONTADORES */}
       <div style={{ background: '#080808', borderRadius: '15px', border: '1px solid #222', overflowX: 'auto', flex: 1 }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', tableLayout: 'fixed' }}>
           <thead>
@@ -218,6 +203,23 @@ const App = () => {
                   <div>{numerosDias[i]}</div>
                 </th>
               ))}
+            </tr>
+            {/* --- FILA DE CONTADORES DE DÍAS LIBRES --- */}
+            <tr style={{ background: '#151515', borderBottom: '1px solid #333' }}>
+              <td colSpan="2" style={{ textAlign: 'right', padding: '10px', color: '#FFD700', fontWeight: 'bold', fontSize: '12px' }}>
+                LIBRANDO HOY:
+              </td>
+              {numerosDias.map((n, i) => {
+                const totalLibres = empleadosVisibles.reduce((acc, emp) => {
+                  const key = `${emp.Cedula || emp.cedula}-${mes}-${semana}-${n}`;
+                  return asistencia[key] === 'LIBRE' ? acc + 1 : acc;
+                }, 0);
+                return (
+                  <td key={i} style={{ textAlign: 'center', color: '#00FF00', fontWeight: '900', fontSize: '14px' }}>
+                    {totalLibres}
+                  </td>
+                );
+              })}
             </tr>
           </thead>
           <tbody>
@@ -258,10 +260,6 @@ const App = () => {
           </tbody>
         </table>
       </div>
-      
-      <footer style={{ marginTop: '20px', color: '#444', fontSize: '11px', textAlign: 'center' }}>
-        Dirección de Tecnología - Canguro Venezuela {currentYear}
-      </footer>
     </div>
   );
 };
