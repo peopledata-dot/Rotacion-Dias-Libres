@@ -19,18 +19,35 @@ const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
 // --- LÓGICA DE FECHAS ---
-const obtenerDiasDelMesLocal = (mes, semana) => {
+// --- LÓGICA DE FECHAS CORREGIDA ---
+const obtenerDiasDelMesLocal = (mesNombre, semanaNombre) => {
   const anio = new Date().getFullYear();
   const mesesNum = {
     'Enero': 0, 'Febrero': 1, 'Marzo': 2, 'Abril': 3, 'Mayo': 4, 'Junio': 5,
     'Julio': 6, 'Agosto': 7, 'Septiembre': 8, 'Octubre': 9, 'Noviembre': 10, 'Diciembre': 11
   };
-  const ultimoDiaMes = new Date(anio, mesesNum[mes] + 1, 0);
-  const totalDias = ultimoDiaMes.getDate();
-  const todosLosDias = Array.from({ length: totalDias }, (_, i) => i + 1);
-  const numSemana = parseInt(semana.split(' ')[1]);
-  const inicio = (numSemana - 1) * 7;
-  return todosLosDias.slice(inicio, inicio + 7);
+  
+  const mesIndex = mesesNum[mesNombre];
+  const numSemana = parseInt(semanaNombre.split(' ')[1]);
+
+  // 1. Buscamos el primer día del mes
+  const primerDiaMes = new Date(anio, mesIndex, 1);
+  
+  // 2. Buscamos el primer lunes del mes (o días antes si el mes no empieza en lunes)
+  // getDay() devuelve 0 para domingo, 1 para lunes... lo ajustamos para que Lunes sea 0
+  const ajusteLunes = (primerDiaMes.getDay() === 0 ? 6 : primerDiaMes.getDay() - 1);
+  const inicioPrimerSemana = new Date(anio, mesIndex, 1 - ajusteLunes);
+
+  // 3. Calculamos el inicio de la semana seleccionada
+  const inicioSemanaSeleccionada = new Date(inicioPrimerSemana);
+  inicioSemanaSeleccionada.setDate(inicioPrimerSemana.getDate() + (numSemana - 1) * 7);
+
+  // 4. Generamos los 7 días de esa semana
+  return Array.from({ length: 7 }, (_, i) => {
+    const dia = new Date(inicioSemanaSeleccionada);
+    dia.setDate(inicioSemanaSeleccionada.getDate() + i);
+    return dia.getDate(); // Retorna el número del día (22, 23, etc.)
+  });
 };
 
 const MESES_ANIO = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
