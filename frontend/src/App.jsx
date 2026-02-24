@@ -80,12 +80,12 @@ const App = () => {
             const obj = {};
             json.table.cols.forEach((col, i) => {
               let val = row.c[i] ? row.c[i].v : '';
-              // ASIGNACIÓN SEGÚN TU ESTRUCTURA (A=0, B=1, etc.)
+              // MAPEO BASADO EN COLUMNAS DE EXCEL (A=0, B=1, ...)
+              if (i === 0) obj["Nombre"] = val; // Columna A (CORREGIDO)
               if (i === 1) obj["Cedula"] = val; // Columna B
-              if (i === 2) obj["Nombre"] = val; // Columna C
-              if (i === 6) obj["Estatus"] = val; // Columna G
+              if (i === 6) obj["Estatus"] = val; // Columna G (Usado para filtrar egresos)
               if (i === 7) obj["Sede"] = val;   // Columna H
-              if (i === 8) obj["Region"] = val; // Columna I (CORREGIDO)
+              if (i === 8) obj["Region"] = val; // Columna I
               if (i === 17) obj["SRT"] = val;   // Columna R
             });
             return obj;
@@ -136,13 +136,13 @@ const App = () => {
       <div style={{ backgroundImage: "linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('/BOT.png')", backgroundSize:'cover', backgroundPosition:'center', height:'100vh', display:'flex', justifyContent:'center', alignItems:'center', fontFamily:'sans-serif' }}>
         <div style={{ background:'rgba(20,20,20,0.95)', padding:'40px', borderRadius:'30px', border:'1px solid #FFD700', width:'340px', textAlign:'center', backdropFilter:'blur(10px)' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ width:'150px', marginBottom:'20px' }} />
-          <h2 style={{ color:'#FFD700', fontSize:'16px', letterSpacing:'2px' }}>RRHH ADMINISTRACIÓN</h2>
-          <form onSubmit={(e) => { e.preventDefault(); if (loginData.usuario === 'SRTCanguro' && loginData.password === 'CanguroADM*') setIsLoggedIn(true); else alert('Error'); }} style={{ display:'flex', flexDirection:'column', gap:'15px', marginTop:'20px' }}>
+          <h2 style={{ color:'#FFD700', fontSize:'16px', letterSpacing:'2px' }}>CANGURO RRHH</h2>
+          <form onSubmit={(e) => { e.preventDefault(); if (loginData.usuario === 'SRTCanguro' && loginData.password === 'CanguroADM*') setIsLoggedIn(true); else alert('Error de acceso'); }} style={{ display:'flex', flexDirection:'column', gap:'15px', marginTop:'20px' }}>
             <input type="text" placeholder="Usuario" style={{ padding:'14px', borderRadius:'10px', background:'#111', color:'#fff', border:'1px solid #333' }} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
             <input type="password" placeholder="Contraseña" style={{ padding:'14px', borderRadius:'10px', background:'#111', color:'#fff', border:'1px solid #333' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
-            <button style={{ padding:'14px', background:'#FFD700', color:'#000', fontWeight:'bold', borderRadius:'10px', border:'none', cursor:'pointer' }}>INGRESAR</button>
+            <button style={{ padding:'14px', background:'#FFD700', color:'#000', fontWeight:'bold', borderRadius:'10px', border:'none', cursor:'pointer' }}>ACCEDER</button>
           </form>
-          <p style={{ marginTop:'20px', color:'#555', fontSize:'11px' }}>Dirección de Recursos Humanos © {anioActual}</p>
+          <p style={{ marginTop:'20px', color:'#555', fontSize:'11px' }}>Canguro Venezuela © {anioActual}</p>
         </div>
       </div>
     );
@@ -153,7 +153,7 @@ const App = () => {
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ height: '30px' }} />
-          <span style={{ color: '#FFD700', fontWeight: 'bold' }}>PLANIFICACIÓN {anioActual}</span>
+          <span style={{ color: '#FFD700', fontWeight: 'bold' }}>SISTEMA DE ASISTENCIA {anioActual}</span>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={handleGuardarYBloquear} disabled={isSaving} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
@@ -184,7 +184,7 @@ const App = () => {
         ))}
         <div style={{ background: '#111', padding: '8px', borderRadius: '10px', border: '1px solid #333', display:'flex', alignItems:'center', gap:'8px' }}>
           <Search size={14} color="#FFD700" />
-          <input type="text" placeholder="Búsqueda global..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '12px' }} />
+          <input type="text" placeholder="Búsqueda..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '12px' }} />
         </div>
       </div>
 
@@ -217,8 +217,8 @@ const App = () => {
               return (
                 <tr key={id} style={{ borderBottom: '1px solid #222' }}>
                   <td style={{ padding: '12px' }}>
-                    <div style={{ fontWeight: 'bold' }}>{emp.Nombre}</div>
-                    <div style={{ fontSize: '9px', color: '#666' }}>{emp.Sede} | {emp.Region}</div>
+                    <div style={{ fontWeight: 'bold', color: '#fff' }}>{emp.Nombre}</div>
+                    <div style={{ fontSize: '9px', color: '#aaa' }}>{emp.Sede} | {emp.Region}</div>
                   </td>
                   {numerosDias.map((n, i) => {
                     const k = `${id}-${mes}-${semana}-${n}`;
@@ -247,7 +247,7 @@ const App = () => {
         </table>
       </div>
       <footer style={{ marginTop: '30px', textAlign: 'center', color: '#333', fontSize: '10px' }}>
-        Dirección de Recursos Humanos - Canguro Venezuela © {anioActual}
+        Dirección de Recursos Humanos © {anioActual}
       </footer>
     </div>
   );
