@@ -80,13 +80,13 @@ const App = () => {
             const obj = {};
             json.table.cols.forEach((col, i) => {
               let val = row.c[i] ? row.c[i].v : '';
-              // AJUSTE DE COLUMNAS SEGÚN TU EXCEL
-              if (i === 1) obj["Cedula"] = val;
-              if (i === 2) obj["Nombre"] = val;
-              if (i === 6) obj["Estatus"] = val; 
-              if (i === 7) obj["Sede"] = val;
-              if (i === 11) obj["Region"] = val; // <--- AQUÍ ESTÁ LA REGIÓN REAL
-              if (i === 17) obj["SRT"] = val;
+              // ASIGNACIÓN SEGÚN TU ESTRUCTURA (A=0, B=1, etc.)
+              if (i === 1) obj["Cedula"] = val; // Columna B
+              if (i === 2) obj["Nombre"] = val; // Columna C
+              if (i === 6) obj["Estatus"] = val; // Columna G
+              if (i === 7) obj["Sede"] = val;   // Columna H
+              if (i === 8) obj["Region"] = val; // Columna I (CORREGIDO)
+              if (i === 17) obj["SRT"] = val;   // Columna R
             });
             return obj;
           });
@@ -118,7 +118,6 @@ const App = () => {
     XLSStyle.writeFile(wb, `Planificacion_${mes}_${semana}.xlsx`);
   };
 
-  // --- LISTAS DINÁMICAS ---
   const listaRegiones = ['TODAS', ...new Set(empleados.map(e => e.Region).filter(Boolean))];
   const listaSRT = ['TODAS', ...new Set(empleados.filter(e => regionFiltro === 'TODAS' || e.Region === regionFiltro).map(e => e.SRT).filter(Boolean))];
   const listaSedes = ['TODAS', ...new Set(empleados.filter(e => (regionFiltro === 'TODAS' || e.Region === regionFiltro) && (srtFiltro === 'TODAS' || e.SRT === srtFiltro)).map(e => e.Sede).filter(Boolean))];
@@ -167,7 +166,7 @@ const App = () => {
         </div>
       </header>
 
-      {/* FILTROS DINÁMICOS */}
+      {/* FILTROS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
         {[
           { label: 'MES', v: mes, f: setMes, l: MESES_ANIO },
