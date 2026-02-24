@@ -55,20 +55,20 @@ const App = () => {
   const [celdasBloqueadas, setCeldasBloqueadas] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  const anioActual = new Date().getFullYear();
+  const anioActual = 2026;
   const numerosDias = obtenerDiasDelMesLocal(mes, semana);
   const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
   useEffect(() => {
     if (isLoggedIn) {
-      const asistenciaRef = ref(db, 'asistencia_canguro');
-      get(asistenciaRef).then((snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          setAsistencia(data);
-          const llavesGuardadas = Object.keys(data).filter(key => data[key] !== 'LABORAL');
-          setCeldasBloqueadas(llavesGuardadas);
-        }
+      // CARGAR ASISTENCIA
+      get(ref(db, 'asistencia_canguro')).then((snapshot) => {
+        if (snapshot.exists()) setAsistencia(snapshot.val());
+      });
+
+      // CARGAR BLOQUEOS PERMANENTES
+      get(ref(db, 'celdas_bloqueadas_perm')).then((snapshot) => {
+        if (snapshot.exists()) setCeldasBloqueadas(snapshot.val());
       });
 
       const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19i5pwrIx8RX0P2OkE1qY2o5igKvvv2hxUuvb9jM_8LE/gviz/tq?tqx=out:json&gid=839594636';
@@ -78,7 +78,6 @@ const App = () => {
           const json = JSON.parse(text.substr(47).slice(0, -2));
           const data = json.table.rows.map(row => {
             const c = row.c;
-            // Mapeo forzado por índices para evitar desplazamientos
             return {
               Nombre: c[0] ? c[0].v : '',    // Columna A (Índice 0)
               Cedula: c[1] ? c[1].v : '',    // Columna B (Índice 1)
@@ -88,7 +87,6 @@ const App = () => {
               SRT: c[17] ? c[17].v : ''      // Columna R (Índice 17)
             };
           });
-          // Filtrar encabezados y egresos
           setEmpleados(data.filter(e => 
             e.Nombre && 
             e.Nombre !== "Nombre" && 
@@ -101,11 +99,24 @@ const App = () => {
   const handleGuardarYBloquear = async () => {
     setIsSaving(true);
     try {
+      // 1. Guardar la asistencia
       await set(ref(db, 'asistencia_canguro'), asistencia);
-      const nuevasBloqueadas = Object.keys(asistencia).filter(k => asistencia[k] !== 'LABORAL');
-      setCeldasBloqueadas(nuevasBloqueadas);
-      alert("✅ Cambios guardados con éxito.");
-    } catch (error) { alert("❌ Error."); } finally { setIsSaving(false); }
+      
+      // 2. Identificar qué celdas deben quedar bloqueadas (todas las que no son LABORAL)
+      const actualesNoLaborales = Object.keys(asistencia).filter(k => asistencia[k] !== 'LABORAL');
+      
+      // 3. Mezclar con bloqueos anteriores para no perder nada y guardar en nodo permanente
+      const listaFinalBloqueos = [...new Set([...celdasBloqueadas, ...actualesNoLaborales])];
+      
+      await set(ref(db, 'celdas_bloqueadas_perm'), listaFinalBloqueos);
+      setCeldasBloqueadas(listaFinalBloqueos);
+      
+      alert("✅ Cambios guardados y celdas bloqueadas permanentemente.");
+    } catch (error) { 
+      alert("❌ Error al guardar."); 
+    } finally { 
+      setIsSaving(false); 
+    }
   };
 
   const exportarExcel = () => {
