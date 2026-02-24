@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import XLSStyle from 'xlsx-js-style';
-import { FileSpreadsheet, LogOut, Save, Lock } from 'lucide-react';
+import { FileSpreadsheet, LogOut, Save, Lock, Search } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, get } from "firebase/database";
 
@@ -45,13 +45,15 @@ const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginData, setLoginData] = useState({ usuario: '', password: '' });
   const [empleados, setEmpleados] = useState([]);
+  
+  // Filtros
   const [mes, setMes] = useState('Febrero');
   const [semana, setSemana] = useState('Semana 1');
   const [srtFiltro, setSrtFiltro] = useState('TODAS');
   const [sedeFiltro, setSedeFiltro] = useState('TODAS');
   const [busqueda, setBusqueda] = useState('');
   
-  // Estados de Datos y Bloqueo
+  // Datos y Bloqueo
   const [asistencia, setAsistencia] = useState({});
   const [celdasBloqueadas, setCeldasBloqueadas] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
@@ -59,22 +61,18 @@ const App = () => {
   const numerosDias = obtenerDiasDelMesLocal(mes, semana);
   const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
-  // --- CARGA INICIAL ---
   useEffect(() => {
     if (isLoggedIn) {
-      // Cargar Asistencia y definir bloqueos iniciales
       const asistenciaRef = ref(db, 'asistencia_canguro');
       get(asistenciaRef).then((snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.val();
           setAsistencia(data);
-          // Bloquear cualquier celda que ya tenga un registro guardado
           const llavesGuardadas = Object.keys(data).filter(key => data[key] !== 'LABORAL');
           setCeldasBloqueadas(llavesGuardadas);
         }
       });
 
-      // Cargar lista de empleados
       const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19i5pwrIx8RX0P2OkE1qY2o5igKvvv2hxUuvb9jM_8LE/gviz/tq?tqx=out:json&gid=839594636';
       fetch(SHEET_URL)
         .then(res => res.text())
@@ -96,56 +94,41 @@ const App = () => {
     }
   }, [isLoggedIn]);
 
-  // --- ACCIÓN: GUARDAR Y BLOQUEAR ---
   const handleGuardarYBloquear = async () => {
     setIsSaving(true);
     try {
-      const asistenciaRef = ref(db, 'asistencia_canguro');
-      await set(asistenciaRef, asistencia);
-      
-      // Tras guardar, bloqueamos todas las celdas con datos seleccionados
+      await set(ref(db, 'asistencia_canguro'), asistencia);
       const nuevasBloqueadas = Object.keys(asistencia).filter(k => asistencia[k] !== 'LABORAL');
       setCeldasBloqueadas(nuevasBloqueadas);
-      
-      alert("✅ Cambios guardados. Las celdas seleccionadas han sido bloqueadas.");
+      alert("✅ Cambios guardados y celdas bloqueadas.");
     } catch (error) {
-      console.error(error);
-      alert("❌ Error al guardar en Firebase. Revisa las reglas de la base de datos.");
+      alert("❌ Error al guardar.");
     } finally {
       setIsSaving(false);
     }
   };
 
-  const exportarExcel = () => {
-    const encabezados = ["COLABORADOR", "CÉDULA", "SRT", "SEDE", ...nombresDias.map((d, i) => `${d} ${numerosDias[i]}`)];
-    const filas = empleadosVisibles.map(emp => {
-      const id = emp.Cedula || emp.cedula;
-      const statusDias = numerosDias.map(n => asistencia[`${id}-${mes}-${semana}-${n}`] || 'LABORAL');
-      return [emp.Nombre || emp.nombre, id, emp.SRT, emp.Sede, ...statusDias];
-    });
-    const ws = XLSStyle.utils.aoa_to_sheet([encabezados, ...filas]);
-    const wb = XLSStyle.utils.book_new();
-    XLSStyle.utils.book_append_sheet(wb, ws, "Planificación");
-    XLSStyle.writeFile(wb, `Planificacion_${mes}_${semana}.xlsx`);
-  };
+  // --- LÓGICA DE LISTAS DESPLEGABLES PARA FILTROS ---
+  const listaSRT = ['TODAS', ...new Set(empleados.map(emp => emp.SRT).filter(Boolean))];
+  const listaSedes = ['TODAS', ...new Set(empleados.filter(e => srtFiltro === 'TODAS' || e.SRT === srtFiltro).map(e => e.Sede).filter(Boolean))];
 
   const empleadosVisibles = empleados.filter(emp => {
     const cumpleSRT = srtFiltro === 'TODAS' || emp.SRT === srtFiltro;
     const cumpleSed = sedeFiltro === 'TODAS' || emp.Sede === sedeFiltro;
     const term = busqueda.toLowerCase();
-    return cumpleSRT && cumpleSed && ((emp.Nombre || "").toString().toLowerCase().includes(term) || (emp.Cedula || "").toString().includes(term));
+    const cumpleBusqueda = (emp.Nombre || "").toString().toLowerCase().includes(term) || (emp.Cedula || "").toString().includes(term);
+    return cumpleSRT && cumpleSed && cumpleBusqueda;
   });
 
-  // --- VISTA LOGIN ---
   if (!isLoggedIn) {
     return (
       <div style={{ backgroundColor: '#000', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif' }}>
         <div style={{ background: '#111', padding: '40px', borderRadius: '20px', border: '2px solid #FFD700', width: '320px', textAlign: 'center' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ width: '150px', marginBottom: '20px' }} />
-          <h2 style={{ color: '#FFD700', fontSize: '14px', marginBottom: '20px' }}>ACCESO RESTRINGIDO</h2>
-          <form onSubmit={(e) => { e.preventDefault(); if (loginData.usuario === 'SRTCanguro' && loginData.password === 'CanguroADM*') setIsLoggedIn(true); else alert('Error'); }} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          <h2 style={{ color: '#FFD700', fontSize: '14px', marginBottom: '20px' }}>SISTEMA DE PLANIFICACIÓN</h2>
+          <form onSubmit={(e) => { e.preventDefault(); if (loginData.usuario === 'SRTCanguro' && loginData.password === 'CanguroADM*') setIsLoggedIn(true); else alert('Credenciales incorrectas'); }} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
             <input type="text" placeholder="Usuario" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #333', background: '#000', color: '#fff' }} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
-            <input type="password" placeholder="Password" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #333', background: '#000', color: '#fff' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
+            <input type="password" placeholder="Contraseña" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #333', background: '#000', color: '#fff' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
             <button style={{ padding: '12px', background: '#FFD700', color: '#000', fontWeight: 'bold', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>ENTRAR</button>
           </form>
         </div>
@@ -155,6 +138,7 @@ const App = () => {
 
   return (
     <div style={{ backgroundColor: '#000', minHeight: '100vh', color: '#fff', padding: '20px', fontFamily: 'sans-serif' }}>
+      {/* HEADER */}
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #222' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ height: '30px' }} />
@@ -164,21 +148,48 @@ const App = () => {
           <button onClick={handleGuardarYBloquear} disabled={isSaving} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
             <Save size={14} /> {isSaving ? 'GUARDANDO...' : 'GUARDAR Y BLOQUEAR'}
           </button>
-          <button onClick={exportarExcel} style={{ background: '#FFD700', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
-            <FileSpreadsheet size={14} /> EXCEL
-          </button>
-          <button onClick={() => window.location.reload()} style={{ background: '#444', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer' }}>
-            <LogOut size={14} />
-          </button>
+          <button onClick={() => window.location.reload()} style={{ background: '#ff4444', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer' }}><LogOut size={14} /></button>
         </div>
       </header>
+
+      {/* FILTROS (Restaurados) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '15px', marginBottom: '20px' }}>
+        <div style={{ background: '#111', padding: '10px', borderRadius: '10px', border: '1px solid #222' }}>
+          <label style={{ fontSize: '10px', color: '#FFD700', fontWeight: 'bold' }}>MES</label>
+          <select value={mes} onChange={e => setMes(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none' }}>
+            {MESES_ANIO.map(m => <option key={m} value={m} style={{background:'#111'}}>{m}</option>)}
+          </select>
+        </div>
+        <div style={{ background: '#111', padding: '10px', borderRadius: '10px', border: '1px solid #222' }}>
+          <label style={{ fontSize: '10px', color: '#FFD700', fontWeight: 'bold' }}>SEMANA</label>
+          <select value={semana} onChange={e => setSemana(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none' }}>
+            {SEMANAS_MES.map(s => <option key={s} value={s} style={{background:'#111'}}>{s}</option>)}
+          </select>
+        </div>
+        <div style={{ background: '#111', padding: '10px', borderRadius: '10px', border: '1px solid #222' }}>
+          <label style={{ fontSize: '10px', color: '#FFD700', fontWeight: 'bold' }}>SRT</label>
+          <select value={srtFiltro} onChange={e => {setSrtFiltro(e.target.value); setSedeFiltro('TODAS');}} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none' }}>
+            {listaSRT.map(s => <option key={s} value={s} style={{background:'#111'}}>{s}</option>)}
+          </select>
+        </div>
+        <div style={{ background: '#111', padding: '10px', borderRadius: '10px', border: '1px solid #222' }}>
+          <label style={{ fontSize: '10px', color: '#FFD700', fontWeight: 'bold' }}>SEDE</label>
+          <select value={sedeFiltro} onChange={e => setSedeFiltro(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none' }}>
+            {listaSedes.map(s => <option key={s} value={s} style={{background:'#111'}}>{s}</option>)}
+          </select>
+        </div>
+        <div style={{ background: '#111', padding: '10px', borderRadius: '10px', border: '1px solid #222', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Search size={14} color="#FFD700" />
+          <input type="text" placeholder="Buscar..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px' }} />
+        </div>
+      </div>
 
       {/* TABLA */}
       <div style={{ background: '#111', borderRadius: '15px', border: '1px solid #222', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
           <thead>
             <tr style={{ background: '#000', color: '#FFD700' }}>
-              <th style={{ padding: '15px', textAlign: 'left', width: '250px' }}>COLABORADOR</th>
+              <th style={{ padding: '15px', textAlign: 'left', width: '220px' }}>COLABORADOR</th>
               {nombresDias.map((d, i) => (
                 <th key={i} style={{ textAlign: 'center', padding: '10px' }}>
                   <div style={{ fontSize: '9px', opacity: 0.6 }}>{d}</div>
@@ -186,7 +197,7 @@ const App = () => {
                 </th>
               ))}
             </tr>
-            <tr style={{ background: '#080808', borderBottom: '2px solid #222' }}>
+            <tr style={{ background: '#080808' }}>
               <td style={{ textAlign: 'right', padding: '10px', color: '#FFD700', fontWeight: 'bold' }}>LIBRANDO HOY:</td>
               {numerosDias.map((n, i) => {
                 const count = empleadosVisibles.reduce((acc, emp) => {
@@ -202,9 +213,9 @@ const App = () => {
               const id = emp.Cedula || emp.cedula;
               return (
                 <tr key={id} style={{ borderBottom: '1px solid #222' }}>
-                  <td style={{ padding: '10px' }}>
+                  <td style={{ padding: '12px' }}>
                     <div style={{ fontWeight: 'bold' }}>{emp.Nombre || emp.nombre}</div>
-                    <div style={{ fontSize: '9px', color: '#555' }}>ID: {id} | {emp.Sede}</div>
+                    <div style={{ fontSize: '9px', color: '#666' }}>{emp.Sede} | {emp.SRT}</div>
                   </td>
                   {numerosDias.map((n, i) => {
                     const keyID = `${id}-${mes}-${semana}-${n}`;
@@ -222,7 +233,8 @@ const App = () => {
                             background: estaBloqueada ? '#000' : '#1a1a1a',
                             color: estaBloqueada ? '#555' : (val === 'LIBRE' ? '#0f0' : '#fff'),
                             border: estaBloqueada ? '1px solid #333' : '1px solid #444',
-                            cursor: estaBloqueada ? 'not-allowed' : 'pointer'
+                            cursor: estaBloqueada ? 'not-allowed' : 'pointer',
+                            appearance: 'none', textAlign: 'center'
                           }}
                         >
                           <option value="LABORAL">LABORAL</option>
