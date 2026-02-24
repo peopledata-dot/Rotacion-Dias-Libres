@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import XLSStyle from 'xlsx-js-style';
-import { FileSpreadsheet, LogOut, Save, Lock, Search, Filter } from 'lucide-react';
+import { FileSpreadsheet, LogOut, Save, Lock, Search } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, get } from "firebase/database";
 
@@ -80,11 +80,13 @@ const App = () => {
             const obj = {};
             json.table.cols.forEach((col, i) => {
               let val = row.c[i] ? row.c[i].v : '';
-              let key = col.label || `col_${i}`;
-              if (i === 7) key = "Sede"; 
-              if (i === 17) key = "SRT";
-              if (i === 11) key = "Region";
-              obj[key] = val;
+              // AJUSTE DE COLUMNAS SEGÚN TU EXCEL
+              if (i === 1) obj["Cedula"] = val;
+              if (i === 2) obj["Nombre"] = val;
+              if (i === 6) obj["Estatus"] = val; 
+              if (i === 7) obj["Sede"] = val;
+              if (i === 11) obj["Region"] = val; // <--- AQUÍ ESTÁ LA REGIÓN REAL
+              if (i === 17) obj["SRT"] = val;
             });
             return obj;
           });
@@ -99,16 +101,16 @@ const App = () => {
       await set(ref(db, 'asistencia_canguro'), asistencia);
       const nuevasBloqueadas = Object.keys(asistencia).filter(k => asistencia[k] !== 'LABORAL');
       setCeldasBloqueadas(nuevasBloqueadas);
-      alert("✅ Planificación guardada.");
+      alert("✅ Cambios guardados con éxito.");
     } catch (error) { alert("❌ Error."); } finally { setIsSaving(false); }
   };
 
   const exportarExcel = () => {
     const encabezados = ["NOMBRE", "CEDULA", "REGION", "SRT", "SEDE", ...nombresDias.map((d, i) => `${d} ${numerosDias[i]}`)];
     const filas = empleadosVisibles.map(emp => {
-      const id = emp.Cedula || emp.cedula;
+      const id = emp.Cedula;
       const statusDias = numerosDias.map(n => asistencia[`${id}-${mes}-${semana}-${n}`] || 'LABORAL');
-      return [emp.Nombre || emp.nombre, id, emp.Region, emp.SRT, emp.Sede, ...statusDias];
+      return [emp.Nombre, id, emp.Region, emp.SRT, emp.Sede, ...statusDias];
     });
     const ws = XLSStyle.utils.aoa_to_sheet([encabezados, ...filas]);
     const wb = XLSStyle.utils.book_new();
@@ -135,13 +137,13 @@ const App = () => {
       <div style={{ backgroundImage: "linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('/BOT.png')", backgroundSize:'cover', backgroundPosition:'center', height:'100vh', display:'flex', justifyContent:'center', alignItems:'center', fontFamily:'sans-serif' }}>
         <div style={{ background:'rgba(20,20,20,0.95)', padding:'40px', borderRadius:'30px', border:'1px solid #FFD700', width:'340px', textAlign:'center', backdropFilter:'blur(10px)' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ width:'150px', marginBottom:'20px' }} />
-          <h2 style={{ color:'#FFD700', fontSize:'16px', letterSpacing:'2px' }}>RECURSOS HUMANOS</h2>
+          <h2 style={{ color:'#FFD700', fontSize:'16px', letterSpacing:'2px' }}>RRHH ADMINISTRACIÓN</h2>
           <form onSubmit={(e) => { e.preventDefault(); if (loginData.usuario === 'SRTCanguro' && loginData.password === 'CanguroADM*') setIsLoggedIn(true); else alert('Error'); }} style={{ display:'flex', flexDirection:'column', gap:'15px', marginTop:'20px' }}>
             <input type="text" placeholder="Usuario" style={{ padding:'14px', borderRadius:'10px', background:'#111', color:'#fff', border:'1px solid #333' }} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
             <input type="password" placeholder="Contraseña" style={{ padding:'14px', borderRadius:'10px', background:'#111', color:'#fff', border:'1px solid #333' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
             <button style={{ padding:'14px', background:'#FFD700', color:'#000', fontWeight:'bold', borderRadius:'10px', border:'none', cursor:'pointer' }}>INGRESAR</button>
           </form>
-          <p style={{ marginTop:'20px', color:'#555', fontSize:'10px' }}>Dirección de Recursos Humanos © {anioActual}</p>
+          <p style={{ marginTop:'20px', color:'#555', fontSize:'11px' }}>Dirección de Recursos Humanos © {anioActual}</p>
         </div>
       </div>
     );
@@ -203,7 +205,7 @@ const App = () => {
               <td style={{ textAlign: 'right', padding: '10px', color: '#FFD700', fontWeight: 'bold' }}>LIBRANDO:</td>
               {numerosDias.map((n, i) => {
                 const count = empleadosVisibles.reduce((acc, emp) => {
-                  const key = `${emp.Cedula || emp.cedula}-${mes}-${semana}-${n}`;
+                  const key = `${emp.Cedula}-${mes}-${semana}-${n}`;
                   return asistencia[key] === 'LIBRE' ? acc + 1 : acc;
                 }, 0);
                 return <td key={i} style={{ textAlign: 'center', color: '#00FF00', fontWeight: 'bold', fontSize: '16px' }}>{count}</td>;
@@ -212,12 +214,12 @@ const App = () => {
           </thead>
           <tbody>
             {empleadosVisibles.map(emp => {
-              const id = emp.Cedula || emp.cedula;
+              const id = emp.Cedula;
               return (
                 <tr key={id} style={{ borderBottom: '1px solid #222' }}>
                   <td style={{ padding: '12px' }}>
-                    <div style={{ fontWeight: 'bold' }}>{emp.Nombre || emp.nombre}</div>
-                    <div style={{ fontSize: '9px', color: '#666' }}>{emp.Sede} | {id}</div>
+                    <div style={{ fontWeight: 'bold' }}>{emp.Nombre}</div>
+                    <div style={{ fontSize: '9px', color: '#666' }}>{emp.Sede} | {emp.Region}</div>
                   </td>
                   {numerosDias.map((n, i) => {
                     const k = `${id}-${mes}-${semana}-${n}`;
