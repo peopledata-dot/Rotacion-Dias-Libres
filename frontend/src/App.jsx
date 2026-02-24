@@ -45,19 +45,16 @@ const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginData, setLoginData] = useState({ usuario: '', password: '' });
   const [empleados, setEmpleados] = useState([]);
-  
-  // Filtros
   const [mes, setMes] = useState('Febrero');
   const [semana, setSemana] = useState('Semana 1');
   const [srtFiltro, setSrtFiltro] = useState('TODAS');
   const [sedeFiltro, setSedeFiltro] = useState('TODAS');
   const [busqueda, setBusqueda] = useState('');
-  
-  // Datos y Bloqueo
   const [asistencia, setAsistencia] = useState({});
   const [celdasBloqueadas, setCeldasBloqueadas] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
+  const anioActual = new Date().getFullYear();
   const numerosDias = obtenerDiasDelMesLocal(mes, semana);
   const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
@@ -100,7 +97,7 @@ const App = () => {
       await set(ref(db, 'asistencia_canguro'), asistencia);
       const nuevasBloqueadas = Object.keys(asistencia).filter(k => asistencia[k] !== 'LABORAL');
       setCeldasBloqueadas(nuevasBloqueadas);
-      alert("✅ Cambios guardados y celdas bloqueadas.");
+      alert("✅ Planificación guardada y protegida.");
     } catch (error) {
       alert("❌ Error al guardar.");
     } finally {
@@ -108,7 +105,19 @@ const App = () => {
     }
   };
 
-  // --- LÓGICA DE LISTAS DESPLEGABLES PARA FILTROS ---
+  const exportarExcel = () => {
+    const encabezados = ["COLABORADOR", "CÉDULA", "SRT", "SEDE", ...nombresDias.map((d, i) => `${d} ${numerosDias[i]}`)];
+    const filas = empleadosVisibles.map(emp => {
+      const id = emp.Cedula || emp.cedula;
+      const statusDias = numerosDias.map(n => asistencia[`${id}-${mes}-${semana}-${n}`] || 'LABORAL');
+      return [emp.Nombre || emp.nombre, id, emp.SRT, emp.Sede, ...statusDias];
+    });
+    const ws = XLSStyle.utils.aoa_to_sheet([encabezados, ...filas]);
+    const wb = XLSStyle.utils.book_new();
+    XLSStyle.utils.book_append_sheet(wb, ws, "Planificación");
+    XLSStyle.writeFile(wb, `Planificacion_Canguro_${mes}_${semana}.xlsx`);
+  };
+
   const listaSRT = ['TODAS', ...new Set(empleados.map(emp => emp.SRT).filter(Boolean))];
   const listaSedes = ['TODAS', ...new Set(empleados.filter(e => srtFiltro === 'TODAS' || e.SRT === srtFiltro).map(e => e.Sede).filter(Boolean))];
 
@@ -116,21 +125,25 @@ const App = () => {
     const cumpleSRT = srtFiltro === 'TODAS' || emp.SRT === srtFiltro;
     const cumpleSed = sedeFiltro === 'TODAS' || emp.Sede === sedeFiltro;
     const term = busqueda.toLowerCase();
-    const cumpleBusqueda = (emp.Nombre || "").toString().toLowerCase().includes(term) || (emp.Cedula || "").toString().includes(term);
-    return cumpleSRT && cumpleSed && cumpleBusqueda;
+    return cumpleSRT && cumpleSed && ((emp.Nombre || "").toString().toLowerCase().includes(term) || (emp.Cedula || "").toString().includes(term));
   });
 
   if (!isLoggedIn) {
     return (
-      <div style={{ backgroundColor: '#000', height: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif' }}>
-        <div style={{ background: '#111', padding: '40px', borderRadius: '20px', border: '2px solid #FFD700', width: '320px', textAlign: 'center' }}>
-          <img src="/logo-canguro.png" alt="Logo" style={{ width: '150px', marginBottom: '20px' }} />
-          <h2 style={{ color: '#FFD700', fontSize: '14px', marginBottom: '20px' }}>SISTEMA DE PLANIFICACIÓN</h2>
-          <form onSubmit={(e) => { e.preventDefault(); if (loginData.usuario === 'SRTCanguro' && loginData.password === 'CanguroADM*') setIsLoggedIn(true); else alert('Credenciales incorrectas'); }} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
-            <input type="text" placeholder="Usuario" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #333', background: '#000', color: '#fff' }} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
-            <input type="password" placeholder="Contraseña" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #333', background: '#000', color: '#fff' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
-            <button style={{ padding: '12px', background: '#FFD700', color: '#000', fontWeight: 'bold', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>ENTRAR</button>
+      <div style={{ 
+        backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.8), rgba(0, 0, 0, 0.8)), url('/BOT.png')", 
+        backgroundSize: 'cover', backgroundPosition: 'center', height: '100vh', 
+        display: 'flex', justifyContent: 'center', alignItems: 'center', fontFamily: 'sans-serif' 
+      }}>
+        <div style={{ background: 'rgba(17, 17, 17, 0.9)', padding: '40px', borderRadius: '25px', border: '2px solid #FFD700', width: '340px', textAlign: 'center', backdropFilter: 'blur(10px)' }}>
+          <img src="/logo-canguro.png" alt="Logo" style={{ width: '160px', marginBottom: '20px' }} />
+          <h2 style={{ color: '#FFD700', fontSize: '18px', marginBottom: '30px', fontWeight: '900' }}>SISTEMA RRHH</h2>
+          <form onSubmit={(e) => { e.preventDefault(); if (loginData.usuario === 'SRTCanguro' && loginData.password === 'CanguroADM*') setIsLoggedIn(true); else alert('Error'); }} style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+            <input type="text" placeholder="Usuario" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #333', background: '#222', color: '#fff' }} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
+            <input type="password" placeholder="Password" style={{ padding: '12px', borderRadius: '8px', border: '1px solid #333', background: '#222', color: '#fff' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
+            <button style={{ padding: '15px', background: '#FFD700', color: '#000', fontWeight: 'bold', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>ACCEDER</button>
           </form>
+          <div style={{ marginTop: '20px', color: '#666', fontSize: '10px' }}>Dirección de Recursos Humanos - {anioActual}</div>
         </div>
       </div>
     );
@@ -138,73 +151,64 @@ const App = () => {
 
   return (
     <div style={{ backgroundColor: '#000', minHeight: '100vh', color: '#fff', padding: '20px', fontFamily: 'sans-serif' }}>
-      {/* HEADER */}
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px', borderRadius: '12px', marginBottom: '20px', border: '1px solid #222' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-          <img src="/logo-canguro.png" alt="Logo" style={{ height: '30px' }} />
-          <span style={{ color: '#FFD700', fontWeight: 'bold' }}>PLANIFICACIÓN SRT 2026</span>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <img src="/logo-canguro.png" alt="Logo" style={{ height: '35px' }} />
+          <h1 style={{ color: '#FFD700', fontSize: '16px', margin: 0, fontWeight: 'bold' }}>PLANIFICACIÓN {anioActual}</h1>
         </div>
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={handleGuardarYBloquear} disabled={isSaving} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
-            <Save size={14} /> {isSaving ? 'GUARDANDO...' : 'GUARDAR Y BLOQUEAR'}
+        <div style={{ display: 'flex', gap: '12px' }}>
+          <button onClick={handleGuardarYBloquear} disabled={isSaving} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '12px' }}>
+            <Save size={16} /> {isSaving ? '...' : 'GUARDAR Y BLOQUEAR'}
           </button>
-          <button onClick={() => window.location.reload()} style={{ background: '#ff4444', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer' }}><LogOut size={14} /></button>
+          <button onClick={exportarExcel} style={{ background: '#FFD700', color: '#000', border: 'none', padding: '10px 18px', borderRadius: '10px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontWeight: 'bold', fontSize: '12px' }}>
+            <FileSpreadsheet size={16} /> EXPORTAR
+          </button>
+          <button onClick={() => window.location.reload()} style={{ background: '#ff4444', color: '#fff', border: 'none', padding: '10px', borderRadius: '10px', cursor: 'pointer' }}><LogOut size={16} /></button>
         </div>
       </header>
 
-      {/* FILTROS (Restaurados) */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '15px', marginBottom: '20px' }}>
-        <div style={{ background: '#111', padding: '10px', borderRadius: '10px', border: '1px solid #222' }}>
-          <label style={{ fontSize: '10px', color: '#FFD700', fontWeight: 'bold' }}>MES</label>
-          <select value={mes} onChange={e => setMes(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none' }}>
-            {MESES_ANIO.map(m => <option key={m} value={m} style={{background:'#111'}}>{m}</option>)}
-          </select>
-        </div>
-        <div style={{ background: '#111', padding: '10px', borderRadius: '10px', border: '1px solid #222' }}>
-          <label style={{ fontSize: '10px', color: '#FFD700', fontWeight: 'bold' }}>SEMANA</label>
-          <select value={semana} onChange={e => setSemana(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none' }}>
-            {SEMANAS_MES.map(s => <option key={s} value={s} style={{background:'#111'}}>{s}</option>)}
-          </select>
-        </div>
-        <div style={{ background: '#111', padding: '10px', borderRadius: '10px', border: '1px solid #222' }}>
-          <label style={{ fontSize: '10px', color: '#FFD700', fontWeight: 'bold' }}>SRT</label>
-          <select value={srtFiltro} onChange={e => {setSrtFiltro(e.target.value); setSedeFiltro('TODAS');}} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none' }}>
-            {listaSRT.map(s => <option key={s} value={s} style={{background:'#111'}}>{s}</option>)}
-          </select>
-        </div>
-        <div style={{ background: '#111', padding: '10px', borderRadius: '10px', border: '1px solid #222' }}>
-          <label style={{ fontSize: '10px', color: '#FFD700', fontWeight: 'bold' }}>SEDE</label>
-          <select value={sedeFiltro} onChange={e => setSedeFiltro(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none' }}>
-            {listaSedes.map(s => <option key={s} value={s} style={{background:'#111'}}>{s}</option>)}
-          </select>
-        </div>
-        <div style={{ background: '#111', padding: '10px', borderRadius: '10px', border: '1px solid #222', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <Search size={14} color="#FFD700" />
-          <input type="text" placeholder="Buscar..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px' }} />
+      {/* FILTROS */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '12px', marginBottom: '20px' }}>
+        {[
+          { label: 'MES', v: mes, f: setMes, l: MESES_ANIO },
+          { label: 'SEMANA', v: semana, f: setSemana, l: SEMANAS_MES },
+          { label: 'SRT', v: srtFiltro, f: (v) => {setSrtFiltro(v); setSedeFiltro('TODAS');}, l: listaSRT },
+          { label: 'SEDE', v: sedeFiltro, f: setSedeFiltro, l: listaSedes }
+        ].map((f, i) => (
+          <div key={i} style={{ background: '#111', padding: '10px', borderRadius: '12px', border: '1px solid #333' }}>
+            <label style={{ color: '#FFD700', fontSize: '10px', fontWeight: 'bold', display: 'block', marginBottom: '5px' }}>{f.label}</label>
+            <select value={f.v} onChange={e => f.f(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '13px' }}>
+              {f.l.map(o => <option key={o} value={o} style={{background:'#111'}}>{o}</option>)}
+            </select>
+          </div>
+        ))}
+        <div style={{ background: '#111', padding: '10px', borderRadius: '12px', border: '1px solid #333', display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <Search size={16} color="#FFD700" />
+          <input type="text" placeholder="Buscar..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none' }} />
         </div>
       </div>
 
       {/* TABLA */}
-      <div style={{ background: '#111', borderRadius: '15px', border: '1px solid #222', overflowX: 'auto' }}>
+      <div style={{ background: '#111', borderRadius: '20px', border: '1px solid #222', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
           <thead>
             <tr style={{ background: '#000', color: '#FFD700' }}>
-              <th style={{ padding: '15px', textAlign: 'left', width: '220px' }}>COLABORADOR</th>
+              <th style={{ padding: '18px', textAlign: 'left', width: '250px' }}>COLABORADOR</th>
               {nombresDias.map((d, i) => (
-                <th key={i} style={{ textAlign: 'center', padding: '10px' }}>
-                  <div style={{ fontSize: '9px', opacity: 0.6 }}>{d}</div>
-                  <div>{numerosDias[i]}</div>
+                <th key={i} style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '9px', opacity: 0.5 }}>{d}</div>
+                  <div style={{ fontSize: '13px' }}>{numerosDias[i]}</div>
                 </th>
               ))}
             </tr>
-            <tr style={{ background: '#080808' }}>
-              <td style={{ textAlign: 'right', padding: '10px', color: '#FFD700', fontWeight: 'bold' }}>LIBRANDO HOY:</td>
+            <tr style={{ background: '#050505', borderBottom: '2px solid #FFD700' }}>
+              <td style={{ textAlign: 'right', padding: '10px', color: '#FFD700', fontWeight: '900' }}>LIBRANDO HOY:</td>
               {numerosDias.map((n, i) => {
                 const count = empleadosVisibles.reduce((acc, emp) => {
                   const key = `${emp.Cedula || emp.cedula}-${mes}-${semana}-${n}`;
                   return asistencia[key] === 'LIBRE' ? acc + 1 : acc;
                 }, 0);
-                return <td key={i} style={{ textAlign: 'center', color: '#00FF00', fontWeight: 'bold', fontSize: '14px' }}>{count}</td>;
+                return <td key={i} style={{ textAlign: 'center', color: '#00FF00', fontWeight: '900', fontSize: '16px' }}>{count}</td>;
               })}
             </tr>
           </thead>
@@ -213,36 +217,27 @@ const App = () => {
               const id = emp.Cedula || emp.cedula;
               return (
                 <tr key={id} style={{ borderBottom: '1px solid #222' }}>
-                  <td style={{ padding: '12px' }}>
-                    <div style={{ fontWeight: 'bold' }}>{emp.Nombre || emp.nombre}</div>
-                    <div style={{ fontSize: '9px', color: '#666' }}>{emp.Sede} | {emp.SRT}</div>
+                  <td style={{ padding: '15px' }}>
+                    <div style={{ fontWeight: 'bold', fontSize: '12px' }}>{emp.Nombre || emp.nombre}</div>
+                    <div style={{ fontSize: '10px', color: '#555' }}>{emp.Sede} | {id}</div>
                   </td>
                   {numerosDias.map((n, i) => {
-                    const keyID = `${id}-${mes}-${semana}-${n}`;
-                    const val = asistencia[keyID] || 'LABORAL';
-                    const estaBloqueada = celdasBloqueadas.includes(keyID);
-
+                    const k = `${id}-${mes}-${semana}-${n}`;
+                    const val = asistencia[k] || 'LABORAL';
+                    const locked = celdasBloqueadas.includes(k);
                     return (
-                      <td key={i} style={{ padding: '4px', position: 'relative' }}>
-                        <select 
-                          value={val} 
-                          disabled={estaBloqueada}
-                          onChange={e => setAsistencia({...asistencia, [keyID]: e.target.value})}
-                          style={{ 
-                            width: '100%', padding: '6px', borderRadius: '5px', fontSize: '10px',
-                            background: estaBloqueada ? '#000' : '#1a1a1a',
-                            color: estaBloqueada ? '#555' : (val === 'LIBRE' ? '#0f0' : '#fff'),
-                            border: estaBloqueada ? '1px solid #333' : '1px solid #444',
-                            cursor: estaBloqueada ? 'not-allowed' : 'pointer',
-                            appearance: 'none', textAlign: 'center'
-                          }}
-                        >
+                      <td key={i} style={{ padding: '5px', position: 'relative' }}>
+                        <select value={val} disabled={locked} onChange={e => setAsistencia({...asistencia, [k]: e.target.value})} style={{ 
+                          width: '100%', padding: '8px', borderRadius: '8px', fontSize: '10px', background: locked ? '#000' : '#1a1a1a',
+                          color: locked ? '#444' : (val==='LIBRE'?'#0f0':val==='EGRESO'?'#f44':'#fff'), border: locked ? '1px solid #222' : '1px solid #444',
+                          cursor: locked ? 'not-allowed' : 'pointer', fontWeight: 'bold', textAlign: 'center'
+                        }}>
                           <option value="LABORAL">LABORAL</option>
                           <option value="LIBRE">LIBRE</option>
                           <option value="EGRESO">EGRESO</option>
                           <option value="TIENDA CERRADA">TIENDA CERRADA</option>
                         </select>
-                        {estaBloqueada && <Lock size={8} style={{ position: 'absolute', top: '5px', right: '5px', color: '#FFD700', opacity: 0.6 }} />}
+                        {locked && <Lock size={8} style={{ position: 'absolute', top: '5px', right: '5px', color: '#FFD700', opacity: 0.5 }} />}
                       </td>
                     );
                   })}
@@ -252,6 +247,10 @@ const App = () => {
           </tbody>
         </table>
       </div>
+      
+      <footer style={{ marginTop: '30px', textAlign: 'center', color: '#444', fontSize: '11px' }}>
+        Dirección de Recursos Humanos - Canguro Venezuela {anioActual}
+      </footer>
     </div>
   );
 };
