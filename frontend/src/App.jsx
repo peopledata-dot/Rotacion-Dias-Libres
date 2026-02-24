@@ -77,20 +77,23 @@ const App = () => {
         .then(text => {
           const json = JSON.parse(text.substr(47).slice(0, -2));
           const data = json.table.rows.map(row => {
-            const obj = {};
-            json.table.cols.forEach((col, i) => {
-              let val = row.c[i] ? row.c[i].v : '';
-              // MAPEO BASADO EN COLUMNAS DE EXCEL (A=0, B=1, ...)
-              if (i === 0) obj["Nombre"] = val; // Columna A (CORREGIDO)
-              if (i === 1) obj["Cedula"] = val; // Columna B
-              if (i === 6) obj["Estatus"] = val; // Columna G (Usado para filtrar egresos)
-              if (i === 7) obj["Sede"] = val;   // Columna H
-              if (i === 8) obj["Region"] = val; // Columna I
-              if (i === 17) obj["SRT"] = val;   // Columna R
-            });
-            return obj;
+            const c = row.c;
+            // Mapeo forzado por índices para evitar desplazamientos
+            return {
+              Nombre: c[0] ? c[0].v : '',    // Columna A (Índice 0)
+              Cedula: c[1] ? c[1].v : '',    // Columna B (Índice 1)
+              Estatus: c[6] ? c[6].v : '',   // Columna G (Índice 6)
+              Sede: c[7] ? c[7].v : '',      // Columna H (Índice 7)
+              Region: c[8] ? c[8].v : '',    // Columna I (Índice 8)
+              SRT: c[17] ? c[17].v : ''      // Columna R (Índice 17)
+            };
           });
-          setEmpleados(data.filter(e => (e.Estatus || "").toString().toUpperCase() !== "EGRESO"));
+          // Filtrar encabezados y egresos
+          setEmpleados(data.filter(e => 
+            e.Nombre && 
+            e.Nombre !== "Nombre" && 
+            (e.Estatus || "").toString().toUpperCase() !== "EGRESO"
+          ));
         });
     }
   }, [isLoggedIn]);
