@@ -155,7 +155,7 @@ const App = () => {
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ height: '30px' }} />
-          <span style={{ color: '#FFD700', fontWeight: 'bold' }}>SISTEMA DE ASISTENCIA {mes.toUpperCase()} {anioActual}</span>
+          <span style={{ color: '#FFD700', fontWeight: 'bold' }}>SISTEMA DE ASISTENCIA CANGURO {anioActual}</span>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={handleGuardarYBloquear} disabled={isSaving} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
