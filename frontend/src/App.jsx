@@ -57,56 +57,74 @@ const App = () => {
   const numerosDias = obtenerDiasDelMesLocal(mes, semana);
   const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
 
+  // Carga inicial y corrección de celdas bloqueadas erróneas
   useEffect(() => {
     if (isLoggedIn) {
-      get(ref(db, 'asistencia_canguro')).then((snapshot) => {
-        if (snapshot.exists()) setAsistencia(snapshot.val());
-      });
-      get(ref(db, 'celdas_bloqueadas_perm')).then((snapshot) => {
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          setCeldasBloqueadas(Array.isArray(data) ? data : []);
-        }
-      });
-      const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19i5pwrIx8RX0P2OkE1qY2o5igKvvv2hxUuvb9jM_8LE/gviz/tq?tqx=out:json&gid=839594636';
-      fetch(SHEET_URL)
-        .then(res => res.text())
-        .then(text => {
-          try {
-            const json = JSON.parse(text.substr(47).slice(0, -2));
-            const data = json.table.rows.map(row => ({
-              Nombre: row.c[0]?.v || '',
-              Cedula: row.c[1]?.v || '',
-              Estatus: row.c[6]?.v || '',
-              Sede: row.c[7]?.v || '',
-              Region: row.c[8]?.v || '',
-              SRT: row.c[17]?.v || ''
-            }));
-            setEmpleados(data.filter(e => e.Nombre && e.Nombre !== "Nombre" && String(e.Estatus).toUpperCase() !== "EGRESO"));
-          } catch (e) { console.error("Error cargando empleados", e); }
+      const fetchData = async () => {
+        const asistSnap = await get(ref(db, 'asistencia_canguro'));
+        const blockSnap = await get(ref(db, 'celdas_bloqueadas_perm'));
+        
+        let asistData = asistSnap.exists() ? asistSnap.val() : {};
+        let blockData = blockSnap.exists() ? (Array.isArray(blockSnap.val()) ? blockSnap.val() : []) : [];
+
+        // LÓGICA DE CORRECCIÓN: Si está bloqueada y dice "LABORAL", pasar a "LIBRE"
+        let huboCambios = false;
+        blockData.forEach(key => {
+          if (!asistData[key] || asistData[key] === 'LABORAL') {
+            asistData[key] = 'LIBRE';
+            huboCambios = true;
+          }
         });
+
+        if (huboCambios) {
+          await set(ref(db, 'asistencia_canguro'), asistData);
+        }
+
+        setAsistencia(asistData);
+        setCeldasBloqueadas(blockData);
+
+        // Cargar Empleados
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19i5pwrIx8RX0P2OkE1qY2o5igKvvv2hxUuvb9jM_8LE/gviz/tq?tqx=out:json&gid=839594636';
+        fetch(SHEET_URL)
+          .then(res => res.text())
+          .then(text => {
+            try {
+              const json = JSON.parse(text.substr(47).slice(0, -2));
+              const data = json.table.rows.map(row => ({
+                Nombre: row.c[0]?.v || '',
+                Cedula: row.c[1]?.v || '',
+                Estatus: row.c[6]?.v || '',
+                Sede: row.c[7]?.v || '',
+                Region: row.c[8]?.v || '',
+                SRT: row.c[17]?.v || ''
+              }));
+              setEmpleados(data.filter(e => e.Nombre && e.Nombre !== "Nombre" && String(e.Estatus).toUpperCase() !== "EGRESO"));
+            } catch (e) { console.error(e); }
+          });
+      };
+      fetchData();
     }
   }, [isLoggedIn]);
 
   const handleGuardarYBloquear = async () => {
     setIsSaving(true);
     try {
-      // 1. Guardar asistencia
       await set(ref(db, 'asistencia_canguro'), asistencia);
       
-      // 2. Obtener bloqueos existentes
       const snap = await get(ref(db, 'celdas_bloqueadas_perm'));
       let bloqueosBase = snap.exists() ? (Array.isArray(snap.val()) ? snap.val() : []) : [];
       
-      // 3. Bloquear celdas de la vista actual que no sean LABORAL
-      const nuevasParaBloquear = Object.keys(asistencia).filter(k => asistencia[k] !== 'LABORAL');
+      // Solo bloqueamos lo que NO es LABORAL
+      const nuevasParaBloquear = Object.keys(asistencia).filter(k => 
+        asistencia[k] !== 'LABORAL' && asistencia[k] !== ''
+      );
+      
       const listaFinal = [...new Set([...bloqueosBase, ...nuevasParaBloquear])];
       
-      // 4. Actualizar base de datos y estado local
       await set(ref(db, 'celdas_bloqueadas_perm'), listaFinal);
       setCeldasBloqueadas(listaFinal);
       
-      alert("✅ Datos guardados y días libres bloqueados correctamente.");
+      alert("✅ Guardado y actualizado. Las celdas bloqueadas ahora son LIBRES.");
     } catch (error) { 
       alert("❌ Error: " + error.message); 
     } finally { 
@@ -174,7 +192,6 @@ const App = () => {
         </div>
       </header>
 
-      {/* FILTROS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
         {[
           { label: 'MES', v: mes, f: setMes, l: MESES_ANIO },
@@ -208,7 +225,6 @@ const App = () => {
                 </th>
               ))}
             </tr>
-            {/* --- FILA DE CONTADOR DE LIBRES REINCORPORADA --- */}
             <tr style={{ background: '#050505', borderBottom:'1px solid #FFD700' }}>
               <td style={{ textAlign: 'right', padding: '10px', color: '#FFD700', fontWeight: 'bold' }}>LIBRANDO:</td>
               {numerosDias.map((n, i) => {
@@ -237,7 +253,7 @@ const App = () => {
                       <td key={i} style={{ padding: '4px', position: 'relative' }}>
                         <select value={val} disabled={locked} onChange={e => setAsistencia({...asistencia, [k]: e.target.value})} style={{ 
                           width: '100%', padding: '7px', borderRadius: '6px', fontSize: '10px', background: locked ? '#000' : '#1a1a1a',
-                          color: locked ? (val === 'LIBRE' ? '#080' : '#444') : (val==='LIBRE'?'#0f0':'#fff'), 
+                          color: locked ? '#0f0' : (val==='LIBRE'?'#0f0':'#fff'), 
                           border: locked ? '1px solid #222' : '1px solid #444',
                           cursor: locked ? 'not-allowed' : 'pointer', textAlign: 'center'
                         }}>
