@@ -44,7 +44,7 @@ const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginData, setLoginData] = useState({ usuario: '', password: '' });
   const [empleados, setEmpleados] = useState([]);
-  const [mes, setMes] = useState('Marzo'); // Cambiado por defecto a Marzo según tu solicitud
+  const [mes, setMes] = useState('Marzo');
   const [semana, setSemana] = useState('Semana 1');
   const [regionFiltro, setRegionFiltro] = useState('TODAS');
   const [srtFiltro, setSrtFiltro] = useState('TODAS');
@@ -60,19 +60,15 @@ const App = () => {
 
   useEffect(() => {
     if (isLoggedIn) {
-      // 1. Cargar Asistencia General
       get(ref(db, 'asistencia_canguro')).then((snapshot) => {
         if (snapshot.exists()) setAsistencia(snapshot.val());
       });
-
-      // 2. Cargar Bloqueos (Lista Maestra)
       get(ref(db, 'celdas_bloqueadas_perm')).then((snapshot) => {
         if (snapshot.exists()) {
           const data = snapshot.val();
           setCeldasBloqueadas(Array.isArray(data) ? data : []);
         }
       });
-
       const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19i5pwrIx8RX0P2OkE1qY2o5igKvvv2hxUuvb9jM_8LE/gviz/tq?tqx=out:json&gid=839594636';
       fetch(SHEET_URL)
         .then(res => res.text())
@@ -97,27 +93,14 @@ const App = () => {
   const handleGuardarYBloquear = async () => {
     setIsSaving(true);
     try {
-      // 1. Guardar todos los datos de asistencia actuales
       await set(ref(db, 'asistencia_canguro'), asistencia);
-      
-      // 2. Obtener bloqueos actuales de la DB para no perder los de Febrero u otros meses
       const snap = await get(ref(db, 'celdas_bloqueadas_perm'));
-      let bloqueosBase = [];
-      if (snap.exists()) {
-        bloqueosBase = Array.isArray(snap.val()) ? snap.val() : [];
-      }
-
-      // 3. Identificar qué celdas en la vista actual (Marzo) deben bloquearse
+      let bloqueosBase = snap.exists() ? (Array.isArray(snap.val()) ? snap.val() : []) : [];
       const nuevasParaBloquear = Object.keys(asistencia).filter(k => asistencia[k] !== 'LABORAL');
-      
-      // 4. Unión de conjuntos (Bloqueos Viejos + Bloqueos Nuevos de Marzo)
       const listaActualizada = [...new Set([...bloqueosBase, ...nuevasParaBloquear])];
-      
-      // 5. Guardar lista maestra definitiva
       await set(ref(db, 'celdas_bloqueadas_perm'), listaActualizada);
       setCeldasBloqueadas(listaActualizada);
-      
-      alert("✅ Datos de " + mes + " guardados y bloqueos actualizados.");
+      alert("✅ Datos y bloqueos de " + mes + " sincronizados correctamente.");
     } catch (error) { 
       alert("❌ Error: " + error.message); 
     } finally { 
@@ -125,7 +108,6 @@ const App = () => {
     }
   };
 
-  // --- RESTO DEL COMPONENTE (RENDER Y EXCEL) IGUAL ---
   const exportarExcel = () => {
     const encabezados = ["NOMBRE", "CEDULA", "REGION", "SRT", "SEDE", ...nombresDias.map((d, i) => `${d} ${numerosDias[i]}`)];
     const filas = empleadosVisibles.map(emp => {
@@ -173,7 +155,7 @@ const App = () => {
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ height: '30px' }} />
-          <span style={{ color: '#FFD700', fontWeight: 'bold' }}>PLANIFICACIÓN MARZO 2026</span>
+          <span style={{ color: '#FFD700', fontWeight: 'bold' }}>SISTEMA DE ASISTENCIA {mes.toUpperCase()} {anioActual}</span>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={handleGuardarYBloquear} disabled={isSaving} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
@@ -186,6 +168,7 @@ const App = () => {
         </div>
       </header>
 
+      {/* FILTROS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
         {[
           { label: 'MES', v: mes, f: setMes, l: MESES_ANIO },
@@ -218,6 +201,17 @@ const App = () => {
                   <div style={{ fontSize:'13px' }}>{numerosDias[i]}</div>
                 </th>
               ))}
+            </tr>
+            {/* CONTADOR DE LIBRES RE-ESTABLECIDO */}
+            <tr style={{ background: '#050505', borderBottom:'1px solid #FFD700' }}>
+              <td style={{ textAlign: 'right', padding: '10px', color: '#FFD700', fontWeight: 'bold' }}>LIBRANDO:</td>
+              {numerosDias.map((n, i) => {
+                const count = empleadosVisibles.reduce((acc, emp) => {
+                  const key = `${emp.Cedula}-${mes}-${semana}-${n}`;
+                  return asistencia[key] === 'LIBRE' ? acc + 1 : acc;
+                }, 0);
+                return <td key={i} style={{ textAlign: 'center', color: '#00FF00', fontWeight: 'bold', fontSize: '16px' }}>{count}</td>;
+              })}
             </tr>
           </thead>
           <tbody>
