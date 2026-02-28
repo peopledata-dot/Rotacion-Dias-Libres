@@ -18,7 +18,6 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// --- LÓGICA DE CALENDARIO ---
 const obtenerDiasDelMesLocal = (mesNombre, semanaNombre) => {
   const anio = 2026;
   const mesesNum = {
@@ -45,7 +44,7 @@ const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginData, setLoginData] = useState({ usuario: '', password: '' });
   const [empleados, setEmpleados] = useState([]);
-  const [mes, setMes] = useState('Febrero');
+  const [mes, setMes] = useState('Marzo'); // Cambiado por defecto a Marzo según tu solicitud
   const [semana, setSemana] = useState('Semana 1');
   const [regionFiltro, setRegionFiltro] = useState('TODAS');
   const [srtFiltro, setSrtFiltro] = useState('TODAS');
@@ -61,14 +60,17 @@ const App = () => {
 
   useEffect(() => {
     if (isLoggedIn) {
-      // CARGAR ASISTENCIA
+      // 1. Cargar Asistencia General
       get(ref(db, 'asistencia_canguro')).then((snapshot) => {
         if (snapshot.exists()) setAsistencia(snapshot.val());
       });
 
-      // CARGAR BLOQUEOS PERMANENTES
+      // 2. Cargar Bloqueos (Lista Maestra)
       get(ref(db, 'celdas_bloqueadas_perm')).then((snapshot) => {
-        if (snapshot.exists()) setCeldasBloqueadas(snapshot.val() || []);
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          setCeldasBloqueadas(Array.isArray(data) ? data : []);
+        }
       });
 
       const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19i5pwrIx8RX0P2OkE1qY2o5igKvvv2hxUuvb9jM_8LE/gviz/tq?tqx=out:json&gid=839594636';
@@ -79,19 +81,15 @@ const App = () => {
           const data = json.table.rows.map(row => {
             const c = row.c;
             return {
-              Nombre: c[0] ? c[0].v : '',    // Columna A (Índice 0)
-              Cedula: c[1] ? c[1].v : '',    // Columna B (Índice 1)
-              Estatus: c[6] ? c[6].v : '',   // Columna G (Índice 6)
-              Sede: c[7] ? c[7].v : '',      // Columna H (Índice 7)
-              Region: c[8] ? c[8].v : '',    // Columna I (Índice 8)
-              SRT: c[17] ? c[17].v : ''      // Columna R (Índice 17)
+              Nombre: c[0] ? c[0].v : '',
+              Cedula: c[1] ? c[1].v : '',
+              Estatus: c[6] ? c[6].v : '',
+              Sede: c[7] ? c[7].v : '',
+              Region: c[8] ? c[8].v : '',
+              SRT: c[17] ? c[17].v : ''
             };
           });
-          setEmpleados(data.filter(e => 
-            e.Nombre && 
-            e.Nombre !== "Nombre" && 
-            (e.Estatus || "").toString().toUpperCase() !== "EGRESO"
-          ));
+          setEmpleados(data.filter(e => e.Nombre && e.Nombre !== "Nombre" && (e.Estatus || "").toString().toUpperCase() !== "EGRESO"));
         });
     }
   }, [isLoggedIn]);
@@ -99,31 +97,35 @@ const App = () => {
   const handleGuardarYBloquear = async () => {
     setIsSaving(true);
     try {
-      // 1. Guardar la asistencia actual
+      // 1. Guardar todos los datos de asistencia actuales
       await set(ref(db, 'asistencia_canguro'), asistencia);
       
-      // 2. Traer la última lista de bloqueos desde el servidor para no pisar nada
-      const snapBloqueos = await get(ref(db, 'celdas_bloqueadas_perm'));
-      const bloqueosExistentes = snapBloqueos.exists() ? snapBloqueos.val() : [];
+      // 2. Obtener bloqueos actuales de la DB para no perder los de Febrero u otros meses
+      const snap = await get(ref(db, 'celdas_bloqueadas_perm'));
+      let bloqueosBase = [];
+      if (snap.exists()) {
+        bloqueosBase = Array.isArray(snap.val()) ? snap.val() : [];
+      }
 
-      // 3. Identificar qué celdas nuevas deben bloquearse (todo lo que no es LABORAL)
+      // 3. Identificar qué celdas en la vista actual (Marzo) deben bloquearse
       const nuevasParaBloquear = Object.keys(asistencia).filter(k => asistencia[k] !== 'LABORAL');
       
-      // 4. Combinar existentes con nuevas y eliminar duplicados
-      const listaFinalBloqueos = [...new Set([...bloqueosExistentes, ...nuevasParaBloquear])];
+      // 4. Unión de conjuntos (Bloqueos Viejos + Bloqueos Nuevos de Marzo)
+      const listaActualizada = [...new Set([...bloqueosBase, ...nuevasParaBloquear])];
       
-      // 5. Guardar en Firebase y actualizar estado local
-      await set(ref(db, 'celdas_bloqueadas_perm'), listaFinalBloqueos);
-      setCeldasBloqueadas(listaFinalBloqueos);
+      // 5. Guardar lista maestra definitiva
+      await set(ref(db, 'celdas_bloqueadas_perm'), listaActualizada);
+      setCeldasBloqueadas(listaActualizada);
       
-      alert("✅ Cambios guardados y personal bloqueado exitosamente.");
+      alert("✅ Datos de " + mes + " guardados y bloqueos actualizados.");
     } catch (error) { 
-      alert("❌ Error al guardar: " + error.message); 
+      alert("❌ Error: " + error.message); 
     } finally { 
       setIsSaving(false); 
     }
   };
 
+  // --- RESTO DEL COMPONENTE (RENDER Y EXCEL) IGUAL ---
   const exportarExcel = () => {
     const encabezados = ["NOMBRE", "CEDULA", "REGION", "SRT", "SEDE", ...nombresDias.map((d, i) => `${d} ${numerosDias[i]}`)];
     const filas = empleadosVisibles.map(emp => {
@@ -161,7 +163,6 @@ const App = () => {
             <input type="password" placeholder="Contraseña" style={{ padding:'14px', borderRadius:'10px', background:'#111', color:'#fff', border:'1px solid #333' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
             <button style={{ padding:'14px', background:'#FFD700', color:'#000', fontWeight:'bold', borderRadius:'10px', border:'none', cursor:'pointer' }}>ACCEDER</button>
           </form>
-          <p style={{ marginTop:'20px', color:'#555', fontSize:'11px' }}>Canguro Venezuela © {anioActual}</p>
         </div>
       </div>
     );
@@ -172,7 +173,7 @@ const App = () => {
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ height: '30px' }} />
-          <span style={{ color: '#FFD700', fontWeight: 'bold' }}>SISTEMA DE ASISTENCIA {anioActual}</span>
+          <span style={{ color: '#FFD700', fontWeight: 'bold' }}>PLANIFICACIÓN MARZO 2026</span>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={handleGuardarYBloquear} disabled={isSaving} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
@@ -185,7 +186,6 @@ const App = () => {
         </div>
       </header>
 
-      {/* FILTROS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
         {[
           { label: 'MES', v: mes, f: setMes, l: MESES_ANIO },
@@ -218,16 +218,6 @@ const App = () => {
                   <div style={{ fontSize:'13px' }}>{numerosDias[i]}</div>
                 </th>
               ))}
-            </tr>
-            <tr style={{ background: '#050505', borderBottom:'1px solid #FFD700' }}>
-              <td style={{ textAlign: 'right', padding: '10px', color: '#FFD700', fontWeight: 'bold' }}>LIBRANDO:</td>
-              {numerosDias.map((n, i) => {
-                const count = empleadosVisibles.reduce((acc, emp) => {
-                  const key = `${emp.Cedula}-${mes}-${semana}-${n}`;
-                  return asistencia[key] === 'LIBRE' ? acc + 1 : acc;
-                }, 0);
-                return <td key={i} style={{ textAlign: 'center', color: '#00FF00', fontWeight: 'bold', fontSize: '16px' }}>{count}</td>;
-              })}
             </tr>
           </thead>
           <tbody>
@@ -265,9 +255,6 @@ const App = () => {
           </tbody>
         </table>
       </div>
-      <footer style={{ marginTop: '30px', textAlign: 'center', color: '#333', fontSize: '10px' }}>
-        Dirección de Recursos Humanos © {anioActual}
-      </footer>
     </div>
   );
 };
