@@ -91,22 +91,26 @@ const App = () => {
   const handleGuardarYBloquear = async () => {
     setIsSaving(true);
     try {
-      // 1. Guardar asistencia
+      // 1. Guardar todos los estados de asistencia actuales
       await set(ref(db, 'asistencia_canguro'), asistencia);
       
-      // 2. Obtener bloqueos existentes
+      // 2. Obtener los bloqueos que ya existen en la nube
       const snap = await get(ref(db, 'celdas_bloqueadas_perm'));
       let bloqueosBase = snap.exists() ? (Array.isArray(snap.val()) ? snap.val() : []) : [];
       
-      // 3. Bloquear celdas de la vista actual que no sean LABORAL
-      const nuevasParaBloquear = Object.keys(asistencia).filter(k => asistencia[k] !== 'LABORAL');
+      // 3. LÓGICA CORREGIDA: Solo identificar para bloquear lo que NO sea "LABORAL"
+      // Solo se agregan a la lista de bloqueados si el valor es LIBRE, EGRESO, etc.
+      const nuevasParaBloquear = Object.keys(asistencia).filter(k => 
+        asistencia[k] !== 'LABORAL' && asistencia[k] !== ''
+      );
+      
       const listaFinal = [...new Set([...bloqueosBase, ...nuevasParaBloquear])];
       
       // 4. Actualizar base de datos y estado local
       await set(ref(db, 'celdas_bloqueadas_perm'), listaFinal);
       setCeldasBloqueadas(listaFinal);
       
-      alert("✅ Datos guardados y días libres bloqueados correctamente.");
+      alert("✅ Guardado: Los días LIBRES han sido bloqueados. Los LABORALES siguen editables.");
     } catch (error) { 
       alert("❌ Error: " + error.message); 
     } finally { 
@@ -174,7 +178,6 @@ const App = () => {
         </div>
       </header>
 
-      {/* FILTROS */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
         {[
           { label: 'MES', v: mes, f: setMes, l: MESES_ANIO },
@@ -208,7 +211,6 @@ const App = () => {
                 </th>
               ))}
             </tr>
-            {/* --- FILA DE CONTADOR DE LIBRES REINCORPORADA --- */}
             <tr style={{ background: '#050505', borderBottom:'1px solid #FFD700' }}>
               <td style={{ textAlign: 'right', padding: '10px', color: '#FFD700', fontWeight: 'bold' }}>LIBRANDO:</td>
               {numerosDias.map((n, i) => {
@@ -237,7 +239,7 @@ const App = () => {
                       <td key={i} style={{ padding: '4px', position: 'relative' }}>
                         <select value={val} disabled={locked} onChange={e => setAsistencia({...asistencia, [k]: e.target.value})} style={{ 
                           width: '100%', padding: '7px', borderRadius: '6px', fontSize: '10px', background: locked ? '#000' : '#1a1a1a',
-                          color: locked ? (val === 'LIBRE' ? '#080' : '#444') : (val==='LIBRE'?'#0f0':'#fff'), 
+                          color: locked ? (val === 'LABORAL' ? '#444' : '#0f0') : (val==='LIBRE'?'#0f0':'#fff'), 
                           border: locked ? '1px solid #222' : '1px solid #444',
                           cursor: locked ? 'not-allowed' : 'pointer', textAlign: 'center'
                         }}>
