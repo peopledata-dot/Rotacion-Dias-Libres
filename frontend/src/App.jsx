@@ -93,37 +93,30 @@ const App = () => {
   const handleGuardarYBloquear = async () => {
     setIsSaving(true);
     try {
+      // 1. Guardamos toda la asistencia actual en la DB
       await set(ref(db, 'asistencia_canguro'), asistencia);
+      
+      // 2. Obtenemos la lista de bloqueos que ya estaban en la DB (para no perder Febrero)
       const snap = await get(ref(db, 'celdas_bloqueadas_perm'));
       let bloqueosBase = snap.exists() ? (Array.isArray(snap.val()) ? snap.val() : []) : [];
+      
+      // 3. Identificamos las celdas de la pantalla actual que NO son LABORAL (incluye LIBRE, EGRESO, etc.)
       const nuevasParaBloquear = Object.keys(asistencia).filter(k => asistencia[k] !== 'LABORAL');
-      const listaActualizada = [...new Set([...bloqueosBase, ...nuevasParaBloquear])];
-      await set(ref(db, 'celdas_bloqueadas_perm'), listaActualizada);
-      setCeldasBloqueadas(listaActualizada);
-      alert("✅ Datos y bloqueos de " + mes + " sincronizados correctamente.");
+      
+      // 4. Fusionamos bloqueos viejos con los nuevos de esta sesión
+      const listaFinal = [...new Set([...bloqueosBase, ...nuevasParaBloquear])];
+      
+      // 5. Guardamos la lista definitiva en Firebase y actualizamos el estado local para mostrar los candados
+      await set(ref(db, 'celdas_bloqueadas_perm'), listaFinal);
+      setCeldasBloqueadas(listaFinal);
+      
+      alert("✅ Cambios guardados. Las celdas marcadas han sido bloqueadas permanentemente.");
     } catch (error) { 
       alert("❌ Error: " + error.message); 
     } finally { 
       setIsSaving(false); 
     }
   };
-
-  const exportarExcel = () => {
-    const encabezados = ["NOMBRE", "CEDULA", "REGION", "SRT", "SEDE", ...nombresDias.map((d, i) => `${d} ${numerosDias[i]}`)];
-    const filas = empleadosVisibles.map(emp => {
-      const id = emp.Cedula;
-      const statusDias = numerosDias.map(n => asistencia[`${id}-${mes}-${semana}-${n}`] || 'LABORAL');
-      return [emp.Nombre, id, emp.Region, emp.SRT, emp.Sede, ...statusDias];
-    });
-    const ws = XLSStyle.utils.aoa_to_sheet([encabezados, ...filas]);
-    const wb = XLSStyle.utils.book_new();
-    XLSStyle.utils.book_append_sheet(wb, ws, "Planificacion");
-    XLSStyle.writeFile(wb, `Planificacion_${mes}_${semana}.xlsx`);
-  };
-
-  const listaRegiones = ['TODAS', ...new Set(empleados.map(e => e.Region).filter(Boolean))];
-  const listaSRT = ['TODAS', ...new Set(empleados.filter(e => regionFiltro === 'TODAS' || e.Region === regionFiltro).map(e => e.SRT).filter(Boolean))];
-  const listaSedes = ['TODAS', ...new Set(empleados.filter(e => (regionFiltro === 'TODAS' || e.Region === regionFiltro) && (srtFiltro === 'TODAS' || e.SRT === srtFiltro)).map(e => e.Sede).filter(Boolean))];
 
   const empleadosVisibles = empleados.filter(emp => {
     const cumpleReg = regionFiltro === 'TODAS' || emp.Region === regionFiltro;
@@ -155,20 +148,17 @@ const App = () => {
       <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
           <img src="/logo-canguro.png" alt="Logo" style={{ height: '30px' }} />
-          <span style={{ color: '#FFD700', fontWeight: 'bold' }}>SISTEMA DE ASISTENCIA CANGURO {anioActual}</span>
+          <span style={{ color: '#FFD700', fontWeight: 'bold' }}>PLANIFICACIÓN MARZO 2026</span>
         </div>
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={handleGuardarYBloquear} disabled={isSaving} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
-            <Save size={14} /> {isSaving ? '...' : 'GUARDAR Y BLOQUEAR'}
-          </button>
-          <button onClick={exportarExcel} style={{ background: '#FFD700', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
-            <FileSpreadsheet size={14} /> EXCEL
+            <Save size={14} /> {isSaving ? 'PROCESANDO...' : 'GUARDAR Y BLOQUEAR'}
           </button>
           <button onClick={() => window.location.reload()} style={{ background: '#444', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer' }}><LogOut size={14} /></button>
         </div>
       </header>
 
-      {/* FILTROS */}
+      {/* FILTROS Y CONTADOR */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
         {[
           { label: 'MES', v: mes, f: setMes, l: MESES_ANIO },
@@ -202,7 +192,6 @@ const App = () => {
                 </th>
               ))}
             </tr>
-            {/* CONTADOR DE LIBRES RE-ESTABLECIDO */}
             <tr style={{ background: '#050505', borderBottom:'1px solid #FFD700' }}>
               <td style={{ textAlign: 'right', padding: '10px', color: '#FFD700', fontWeight: 'bold' }}>LIBRANDO:</td>
               {numerosDias.map((n, i) => {
@@ -226,20 +215,29 @@ const App = () => {
                   {numerosDias.map((n, i) => {
                     const k = `${id}-${mes}-${semana}-${n}`;
                     const val = asistencia[k] || 'LABORAL';
-                    const locked = celdasBloqueadas.includes(k);
+                    const isLocked = celdasBloqueadas.includes(k);
+                    
                     return (
                       <td key={i} style={{ padding: '4px', position: 'relative' }}>
-                        <select value={val} disabled={locked} onChange={e => setAsistencia({...asistencia, [k]: e.target.value})} style={{ 
-                          width: '100%', padding: '7px', borderRadius: '6px', fontSize: '10px', background: locked ? '#000' : '#1a1a1a',
-                          color: locked ? '#444' : (val==='LIBRE'?'#0f0':'#fff'), border: locked ? '1px solid #222' : '1px solid #444',
-                          cursor: locked ? 'not-allowed' : 'pointer', textAlign: 'center'
-                        }}>
+                        <select 
+                          value={val} 
+                          disabled={isLocked}
+                          onChange={e => setAsistencia({...asistencia, [k]: e.target.value})} 
+                          style={{ 
+                            width: '100%', padding: '7px', borderRadius: '6px', fontSize: '10px', 
+                            background: isLocked ? '#000' : '#1a1a1a',
+                            color: isLocked ? (val==='LIBRE'?'#080':'#666') : (val==='LIBRE'?'#0f0':'#fff'), 
+                            border: isLocked ? '1px solid #222' : '1px solid #444',
+                            cursor: isLocked ? 'not-allowed' : 'pointer', textAlign: 'center',
+                            opacity: isLocked ? 0.7 : 1
+                          }}
+                        >
                           <option value="LABORAL">LABORAL</option>
                           <option value="LIBRE">LIBRE</option>
                           <option value="EGRESO">EGRESO</option>
                           <option value="TIENDA CERRADA">TIENDA CERRADA</option>
                         </select>
-                        {locked && <Lock size={8} style={{ position: 'absolute', top: '5px', right: '5px', color: '#FFD700', opacity: 0.5 }} />}
+                        {isLocked && <Lock size={8} style={{ position: 'absolute', top: '5px', right: '5px', color: '#FFD700', opacity: 0.6 }} />}
                       </td>
                     );
                   })}
