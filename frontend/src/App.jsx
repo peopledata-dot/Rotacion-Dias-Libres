@@ -1,10 +1,10 @@
-import React, { useState, useEffect, useMemo, useCallback, memo } from 'react';
+import React, { useState, useEffect } from 'react';
 import XLSStyle from 'xlsx-js-style';
 import { FileSpreadsheet, LogOut, Save, Lock, Search, MapPin } from 'lucide-react';
 import { initializeApp } from "firebase/app";
 import { getDatabase, ref, set, get } from "firebase/database";
 
-// --- CONFIGURACIÓN FIREBASE (Sin cambios) ---
+// --- CONFIGURACIÓN FIREBASE ---
 const firebaseConfig = {
   apiKey: "AIzaSyA0D6uB6dID2UySULeacwMsUxO-HUL5Qc4",
   authDomain: "rotacion-dias-libres-canguro.firebaseapp.com",
@@ -18,67 +18,18 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 const db = getDatabase(app);
 
-// --- COMPONENTE DE FILA OPTIMIZADO ---
-// memo evita que la fila se renderice si sus datos no han cambiado
-const FilaEmpleado = memo(({ emp, numerosDias, asistencia, celdasBloqueadas, sedeActual, listaSedes, onAsistenciaChange, onSedeChange, mes, semana }) => {
-  return (
-    <tr style={{ borderBottom: '1px solid #222' }}>
-      <td style={{ padding: '12px' }}>
-        <div style={{ fontWeight: 'bold', color: '#fff' }}>{emp.Nombre}</div>
-        <div style={{ fontSize: '9px', color: '#aaa' }}>{emp.Cedula} | {emp.Region}</div>
-      </td>
-      <td style={{ padding: '12px' }}>
-        <div style={{ display:'flex', alignItems:'center', gap:'5px', background:'#000', padding:'5px', borderRadius:'5px', border:'1px solid #333' }}>
-          <MapPin size={10} color="#FFD700" />
-          <select 
-            value={sedeActual}
-            onChange={(e) => onSedeChange(emp.Cedula, e.target.value)}
-            style={{ background:'none', color:'#FFD700', border:'none', fontSize:'10px', width:'100%', outline:'none' }}
-          >
-            {listaSedes.map(s => <option key={s} value={s} style={{background:'#111'}}>{s}</option>)}
-          </select>
-        </div>
-      </td>
-      {numerosDias.map((n) => {
-        const k = `${emp.Cedula}-${mes}-${semana}-${n}`;
-        const val = asistencia[k] || 'LABORAL';
-        const locked = celdasBloqueadas.includes(k);
-        return (
-          <td key={n} style={{ padding: '4px', position: 'relative' }}>
-            <select 
-              value={val} 
-              disabled={locked} 
-              onChange={e => onAsistenciaChange(k, e.target.value)} 
-              style={{ 
-                width: '100%', padding: '7px', borderRadius: '6px', fontSize: '10px', 
-                background: locked ? '#000' : '#1a1a1a',
-                color: locked || val === 'LIBRE' ? '#0f0' : '#fff', 
-                border: locked ? '1px solid #222' : '1px solid #444',
-                textAlign: 'center'
-              }}
-            >
-              <option value="LABORAL">LABORAL</option>
-              <option value="LIBRE">LIBRE</option>
-              <option value="EGRESO">EGRESO</option>
-              <option value="TIENDA CERRADA">TIENDA CERRADA</option>
-            </select>
-            {locked && <Lock size={8} style={{ position: 'absolute', top: '5px', right: '5px', color: '#FFD700', opacity: 0.5 }} />}
-          </td>
-        );
-      })}
-    </tr>
-  );
-});
-
-// --- FUNCIONES HELPER ---
 const obtenerDiasDelMesLocal = (mesNombre, semanaNombre) => {
   const anio = 2026;
-  const mesesNum = { 'Enero': 0, 'Febrero': 1, 'Marzo': 2, 'Abril': 3, 'Mayo': 4, 'Junio': 5, 'Julio': 6, 'Agosto': 7, 'Septiembre': 8, 'Octubre': 9, 'Noviembre': 10, 'Diciembre': 11 };
+  const mesesNum = {
+    'Enero': 0, 'Febrero': 1, 'Marzo': 2, 'Abril': 3, 'Mayo': 4, 'Junio': 5,
+    'Julio': 6, 'Agosto': 7, 'Septiembre': 8, 'Octubre': 9, 'Noviembre': 10, 'Diciembre': 11
+  };
   const mesIndex = mesesNum[mesNombre] || 0;
   const numSemana = parseInt(semanaNombre.split(' ')[1]) || 1;
   const primerDiaMes = new Date(anio, mesIndex, 1);
   const ajusteLunes = (primerDiaMes.getDay() === 0 ? 6 : primerDiaMes.getDay() - 1);
   const inicioSemana = new Date(anio, mesIndex, 1 - ajusteLunes + (numSemana - 1) * 7);
+
   return Array.from({ length: 7 }, (_, i) => {
     const dia = new Date(inicioSemana);
     dia.setDate(inicioSemana.getDate() + i);
@@ -93,161 +44,262 @@ const App = () => {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [loginData, setLoginData] = useState({ usuario: '', password: '' });
   const [empleados, setEmpleados] = useState([]);
-  const [sedesEditadas, setSedesEditadas] = useState({});
+  const [sedesEditadas, setSedesEditadas] = useState({}); // Almacena cambios de sede manuales
   const [mes, setMes] = useState('Marzo');
   const [semana, setSemana] = useState('Semana 1');
   const [regionFiltro, setRegionFiltro] = useState('TODAS');
   const [srtFiltro, setSrtFiltro] = useState('TODAS');
   const [sedeFiltro, setSedeFiltro] = useState('TODAS');
   const [busqueda, setBusqueda] = useState('');
-  const [busquedaDebounced, setBusquedaDebounced] = useState(''); // Para fluidez al escribir
   const [asistencia, setAsistencia] = useState({});
   const [celdasBloqueadas, setCeldasBloqueadas] = useState([]);
   const [isSaving, setIsSaving] = useState(false);
 
-  const numerosDias = useMemo(() => obtenerDiasDelMesLocal(mes, semana), [mes, semana]);
+  const numerosDias = obtenerDiasDelMesLocal(mes, semana);
   const nombresDias = ['Lunes', 'Martes', 'Miércoles', 'Jueves', 'Viernes', 'Sábado', 'Domingo'];
-
-  // Debounce para la búsqueda (espera 300ms antes de filtrar)
-  useEffect(() => {
-    const timer = setTimeout(() => setBusquedaDebounced(busqueda), 300);
-    return () => clearTimeout(timer);
-  }, [busqueda]);
 
   useEffect(() => {
     if (isLoggedIn) {
       const fetchData = async () => {
-        const [sedesSnap, asistSnap, blockSnap] = await Promise.all([
-          get(ref(db, 'sedes_personalizadas')),
-          get(ref(db, 'asistencia_canguro')),
-          get(ref(db, 'celdas_bloqueadas_perm'))
-        ]);
+        // Cargar Sedes personalizadas primero
+        const sedesSnap = await get(ref(db, 'sedes_personalizadas'));
+        const sedesData = sedesSnap.exists() ? sedesSnap.val() : {};
+        setSedesEditadas(sedesData);
 
-        setSedesEditadas(sedesSnap.exists() ? sedesSnap.val() : {});
-        setAsistencia(asistSnap.exists() ? asistSnap.val() : {});
-        setCeldasBloqueadas(blockSnap.exists() ? (Array.isArray(blockSnap.val()) ? blockSnap.val() : []) : []);
+        const asistSnap = await get(ref(db, 'asistencia_canguro'));
+        const blockSnap = await get(ref(db, 'celdas_bloqueadas_perm'));
+        
+        let asistData = asistSnap.exists() ? asistSnap.val() : {};
+        let blockData = blockSnap.exists() ? (Array.isArray(blockSnap.val()) ? blockSnap.val() : []) : [];
 
-        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19i5pwrIx8RX0P2OkE1qY2o5igKvvv2hxUuvb9jM_8LE/gviz/tq?tqx=out:json&gid=839594636';
-        fetch(SHEET_URL).then(res => res.text()).then(text => {
-          const json = JSON.parse(text.substr(47).slice(0, -2));
-          const data = json.table.rows.map(row => ({
-            Nombre: row.c[0]?.v || '',
-            Cedula: String(row.c[1]?.v || ''),
-            Estatus: row.c[6]?.v || '',
-            SedeOriginal: row.c[7]?.v || '',
-            Region: row.c[8]?.v || '',
-            SRT: row.c[17]?.v || ''
-          })).filter((emp, index, self) => 
-            emp.Nombre && emp.Nombre !== "Nombre" && 
-            String(emp.Estatus).toUpperCase() !== "EGRESO" &&
-            index === self.findIndex(t => t.Cedula === emp.Cedula)
-          );
-          setEmpleados(data);
+        // Corrección automática: bloqueados LABORAL -> LIBRE
+        let huboCambios = false;
+        blockData.forEach(key => {
+          if (!asistData[key] || asistData[key] === 'LABORAL') {
+            asistData[key] = 'LIBRE';
+            huboCambios = true;
+          }
         });
+        if (huboCambios) await set(ref(db, 'asistencia_canguro'), asistData);
+
+        setAsistencia(asistData);
+        setCeldasBloqueadas(blockData);
+
+        // Cargar Empleados de Google Sheets
+        const SHEET_URL = 'https://docs.google.com/spreadsheets/d/19i5pwrIx8RX0P2OkE1qY2o5igKvvv2hxUuvb9jM_8LE/gviz/tq?tqx=out:json&gid=839594636';
+        fetch(SHEET_URL)
+          .then(res => res.text())
+          .then(text => {
+            try {
+              const json = JSON.parse(text.substr(47).slice(0, -2));
+              const dataRaw = json.table.rows.map(row => ({
+                Nombre: row.c[0]?.v || '',
+                Cedula: String(row.c[1]?.v || ''),
+                Estatus: row.c[6]?.v || '',
+                SedeOriginal: row.c[7]?.v || '',
+                Region: row.c[8]?.v || '',
+                SRT: row.c[17]?.v || ''
+              }));
+              
+              // Filtrar duplicados por cédula y egresos
+              const dataFiltrada = dataRaw.filter((emp, index, self) => 
+                emp.Nombre && emp.Nombre !== "Nombre" && 
+                String(emp.Estatus).toUpperCase() !== "EGRESO" &&
+                index === self.findIndex(t => t.Cedula === emp.Cedula)
+              );
+              setEmpleados(dataFiltrada);
+            } catch (e) { console.error(e); }
+          });
       };
       fetchData();
     }
   }, [isLoggedIn]);
 
-  // Manejadores estables con useCallback
-  const onAsistenciaChange = useCallback((key, value) => {
-    setAsistencia(prev => ({ ...prev, [key]: value }));
-  }, []);
-
-  const onSedeChange = useCallback((cedula, nuevaSede) => {
-    setSedesEditadas(prev => ({ ...prev, [cedula]: nuevaSede }));
-  }, []);
-
   const handleGuardarYBloquear = async () => {
     setIsSaving(true);
     try {
-      await Promise.all([
-        set(ref(db, 'asistencia_canguro'), asistencia),
-        set(ref(db, 'sedes_personalizadas'), sedesEditadas)
-      ]);
-      alert("✅ Guardado con éxito.");
-    } catch (e) { alert("Error"); }
-    setIsSaving(false);
+      // Guardar Asistencia
+      await set(ref(db, 'asistencia_canguro'), asistencia);
+      
+      // Guardar Sedes Modificadas
+      await set(ref(db, 'sedes_personalizadas'), sedesEditadas);
+
+      // Gestionar bloqueos
+      const snap = await get(ref(db, 'celdas_bloqueadas_perm'));
+      let bloqueosBase = snap.exists() ? (Array.isArray(snap.val()) ? snap.val() : []) : [];
+      const nuevasParaBloquear = Object.keys(asistencia).filter(k => asistencia[k] !== 'LABORAL' && asistencia[k] !== '');
+      const listaFinal = [...new Set([...bloqueosBase, ...nuevasParaBloquear])];
+      
+      await set(ref(db, 'celdas_bloqueadas_perm'), listaFinal);
+      setCeldasBloqueadas(listaFinal);
+      
+      alert("✅ Datos guardados. Sedes y asistencia actualizadas.");
+    } catch (error) { 
+      alert("❌ Error: " + error.message); 
+    } finally { 
+      setIsSaving(false); 
+    }
   };
 
-  // Memoizar listas de filtros para no recalcular innecesariamente
-  const listaSedesUnicas = useMemo(() => {
-    return [...new Set(empleados.map(e => sedesEditadas[e.Cedula] || e.SedeOriginal).filter(Boolean))].sort();
-  }, [empleados, sedesEditadas]);
-
-  const empleadosVisibles = useMemo(() => {
-    return empleados.filter(emp => {
-      const sedeActual = sedesEditadas[emp.Cedula] || emp.SedeOriginal;
-      const cumpleReg = regionFiltro === 'TODAS' || emp.Region === regionFiltro;
-      const cumpleSRT = srtFiltro === 'TODAS' || emp.SRT === srtFiltro;
-      const cumpleSed = sedeFiltro === 'TODAS' || sedeActual === sedeFiltro;
-      const term = busquedaDebounced.toLowerCase();
-      return cumpleReg && cumpleSRT && cumpleSed && (!term || emp.Nombre.toLowerCase().includes(term) || emp.Cedula.includes(term));
+  const exportarExcel = () => {
+    const encabezados = ["NOMBRE", "CEDULA", "REGION", "SRT", "SEDE", ...nombresDias.map((d, i) => `${d} ${numerosDias[i]}`)];
+    const filas = empleadosVisibles.map(emp => {
+      const id = emp.Cedula;
+      const sedeReal = sedesEditadas[id] || emp.SedeOriginal;
+      const statusDias = numerosDias.map(n => asistencia[`${id}-${mes}-${semana}-${n}`] || 'LABORAL');
+      return [emp.Nombre, id, emp.Region, emp.SRT, sedeReal, ...statusDias];
     });
-  }, [empleados, sedesEditadas, regionFiltro, srtFiltro, sedeFiltro, busquedaDebounced]);
+    const ws = XLSStyle.utils.aoa_to_sheet([encabezados, ...filas]);
+    const wb = XLSStyle.utils.book_new();
+    XLSStyle.utils.book_append_sheet(wb, ws, "Planificacion");
+    XLSStyle.writeFile(wb, `Planificacion_${mes}_${semana}.xlsx`);
+  };
 
-  if (!isLoggedIn) return (
-    <div style={{ background:'#000', height:'100vh', display:'flex', justifyContent:'center', alignItems:'center' }}>
-        <button onClick={() => setIsLoggedIn(true)} style={{ padding:'15px 30px', background:'#FFD700', borderRadius:'10px', cursor:'pointer' }}>ENTRAR AL SISTEMA</button>
-    </div>
-  );
+  // Listas para filtros (usando sedes actualizadas)
+  const listaRegiones = ['TODAS', ...new Set(empleados.map(e => e.Region).filter(Boolean))];
+  const listaSRT = ['TODAS', ...new Set(empleados.filter(e => regionFiltro === 'TODAS' || e.Region === regionFiltro).map(e => e.SRT).filter(Boolean))];
+  const listaSedes = ['TODAS', ...new Set(empleados.map(e => sedesEditadas[e.Cedula] || e.SedeOriginal).filter(Boolean))];
+
+  const empleadosVisibles = empleados.filter(emp => {
+    const sedeActual = sedesEditadas[emp.Cedula] || emp.SedeOriginal;
+    const cumpleReg = regionFiltro === 'TODAS' || emp.Region === regionFiltro;
+    const cumpleSRT = srtFiltro === 'TODAS' || emp.SRT === srtFiltro;
+    const cumpleSed = sedeFiltro === 'TODAS' || sedeActual === sedeFiltro;
+    const term = busqueda.toLowerCase().trim();
+    const dataString = `${emp.Nombre} ${emp.Cedula} ${sedeActual}`.toLowerCase();
+    return cumpleReg && cumpleSRT && cumpleSed && (!term || dataString.includes(term));
+  });
+
+  if (!isLoggedIn) {
+    return (
+      <div style={{ backgroundImage: "linear-gradient(rgba(0,0,0,0.8), rgba(0,0,0,0.8)), url('/BOT.png')", backgroundSize:'cover', backgroundPosition:'center', height:'100vh', display:'flex', justifyContent:'center', alignItems:'center', fontFamily:'sans-serif' }}>
+        <div style={{ background:'rgba(20,20,20,0.95)', padding:'40px', borderRadius:'30px', border:'1px solid #FFD700', width:'340px', textAlign:'center', backdropFilter:'blur(10px)' }}>
+          <img src="/logo-canguro.png" alt="Logo" style={{ width:'150px', marginBottom:'20px' }} />
+          <h2 style={{ color:'#FFD700', fontSize:'16px', letterSpacing:'2px' }}>CANGURO RRHH</h2>
+          <form onSubmit={(e) => { e.preventDefault(); if (loginData.usuario === 'SRTCanguro' && loginData.password === 'CanguroADM*') setIsLoggedIn(true); else alert('Error de acceso'); }} style={{ display:'flex', flexDirection:'column', gap:'15px', marginTop:'20px' }}>
+            <input type="text" placeholder="Usuario" style={{ padding:'14px', borderRadius:'10px', background:'#111', color:'#fff', border:'1px solid #333' }} onChange={e => setLoginData({...loginData, usuario: e.target.value})} />
+            <input type="password" placeholder="Contraseña" style={{ padding:'14px', borderRadius:'10px', background:'#111', color:'#fff', border:'1px solid #333' }} onChange={e => setLoginData({...loginData, password: e.target.value})} />
+            <button style={{ padding:'14px', background:'#FFD700', color:'#000', fontWeight:'bold', borderRadius:'10px', border:'none', cursor:'pointer' }}>ACCEDER</button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ backgroundColor: '#000', minHeight: '100vh', color: '#fff', padding: '20px', fontFamily: 'sans-serif' }}>
-      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px', borderRadius: '15px', marginBottom: '20px' }}>
-        <span style={{ color: '#FFD700', fontWeight: 'bold' }}>PLANIFICACIÓN 2026</span>
-        <button onClick={handleGuardarYBloquear} disabled={isSaving} style={{ background: '#28a745', color: '#fff', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer' }}>
-          <Save size={14} /> {isSaving ? 'ESPERE...' : 'GUARDAR CAMBIOS'}
-        </button>
+      <header style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '15px', borderRadius: '15px', border: '1px solid #222', marginBottom: '20px' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+          <img src="/logo-canguro.png" alt="Logo" style={{ height: '30px' }} />
+          <span style={{ color: '#FFD700', fontWeight: 'bold' }}>PLANIFICACIÓN {mes.toUpperCase()} 2026</span>
+        </div>
+        <div style={{ display: 'flex', gap: '10px' }}>
+          <button onClick={handleGuardarYBloquear} disabled={isSaving} style={{ background: '#28a745', color: '#fff', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
+            <Save size={14} /> {isSaving ? 'GUARDANDO...' : 'GUARDAR CAMBIOS'}
+          </button>
+          <button onClick={exportarExcel} style={{ background: '#FFD700', color: '#000', border: 'none', padding: '10px 15px', borderRadius: '8px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', fontWeight: 'bold' }}>
+            <FileSpreadsheet size={14} /> EXCEL
+          </button>
+          <button onClick={() => window.location.reload()} style={{ background: '#444', color: '#fff', border: 'none', padding: '10px', borderRadius: '8px', cursor: 'pointer' }}><LogOut size={14} /></button>
+        </div>
       </header>
 
-      {/* FILTROS (Solo Sede y Búsqueda para el ejemplo) */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
-        <select value={sedeFiltro} onChange={e => setSedeFiltro(e.target.value)} style={{ background:'#111', color:'#fff', padding:'10px', borderRadius:'10px', flex: 1 }}>
-          <option value="TODAS">TODAS LAS SEDES</option>
-          {listaSedesUnicas.map(s => <option key={s} value={s}>{s}</option>)}
-        </select>
-        <input 
-          type="text" 
-          placeholder="Buscar por nombre o cédula..." 
-          value={busqueda} 
-          onChange={e => setBusqueda(e.target.value)} 
-          style={{ background: '#111', color: '#fff', border: '1px solid #333', padding: '10px', borderRadius: '10px', flex: 2 }} 
-        />
+      {/* Selectores de Filtro */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(6, 1fr)', gap: '10px', marginBottom: '20px' }}>
+        {[
+          { label: 'MES', v: mes, f: setMes, l: MESES_ANIO },
+          { label: 'SEMANA', v: semana, f: setSemana, l: SEMANAS_MES },
+          { label: 'REGIÓN', v: regionFiltro, f: (v)=>{setRegionFiltro(v); setSrtFiltro('TODAS'); setSedeFiltro('TODAS');}, l: listaRegiones },
+          { label: 'SRT', v: srtFiltro, f: (v)=>{setSrtFiltro(v); setSedeFiltro('TODAS');}, l: listaSRT },
+          { label: 'SEDE', v: sedeFiltro, f: setSedeFiltro, l: listaSedes }
+        ].map((f, i) => (
+          <div key={i} style={{ background: '#111', padding: '8px', borderRadius: '10px', border: '1px solid #333' }}>
+            <label style={{ color: '#FFD700', fontSize: '9px', fontWeight: 'bold', display: 'block' }}>{f.label}</label>
+            <select value={f.v} onChange={e => f.f(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '12px' }}>
+              {f.l.map(o => <option key={o} value={o} style={{background:'#111'}}>{o}</option>)}
+            </select>
+          </div>
+        ))}
+        <div style={{ background: '#111', padding: '8px', borderRadius: '10px', border: '1px solid #333', display:'flex', alignItems:'center', gap:'8px' }}>
+          <Search size={14} color="#FFD700" />
+          <input type="text" placeholder="Búsqueda..." value={busqueda} onChange={e => setBusqueda(e.target.value)} style={{ width: '100%', background: 'none', color: '#fff', border: 'none', outline: 'none', fontSize: '12px' }} />
+        </div>
       </div>
 
-      <div style={{ background: '#111', borderRadius: '20px', overflow: 'hidden' }}>
+      <div style={{ background: '#111', borderRadius: '20px', border: '1px solid #222', overflowX: 'auto' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
           <thead>
             <tr style={{ background: '#000', color: '#FFD700' }}>
-              <th style={{ padding: '15px', textAlign: 'left' }}>COLABORADOR</th>
-              <th style={{ textAlign: 'left' }}>SEDE ACTUAL</th>
-              {nombresDias.map((d, i) => <th key={i} style={{textAlign:'center'}}>{d}<br/>{numerosDias[i]}</th>)}
+              <th style={{ padding: '15px', textAlign: 'left', width: '220px' }}>COLABORADOR</th>
+              <th style={{ textAlign: 'left', width: '160px' }}>SEDE ACTUAL</th>
+              {nombresDias.map((d, i) => (
+                <th key={i} style={{ textAlign: 'center' }}>
+                  <div style={{ fontSize: '9px', opacity: 0.5 }}>{d}</div>
+                  <div style={{ fontSize:'13px' }}>{numerosDias[i]}</div>
+                </th>
+              ))}
             </tr>
+            {/* Fila de Conteo */}
             <tr style={{ background: '#050505', borderBottom:'1px solid #FFD700' }}>
               <td colSpan={2} style={{ textAlign: 'right', padding: '10px', color: '#FFD700', fontWeight: 'bold' }}>TOTAL LIBRANDO:</td>
               {numerosDias.map((n, i) => {
-                const count = empleadosVisibles.filter(emp => asistencia[`${emp.Cedula}-${mes}-${semana}-${n}`] === 'LIBRE').length;
+                const count = empleadosVisibles.filter(emp => {
+                  const key = `${emp.Cedula}-${mes}-${semana}-${n}`;
+                  return asistencia[key] === 'LIBRE';
+                }).length;
                 return <td key={i} style={{ textAlign: 'center', color: '#00FF00', fontWeight: 'bold', fontSize: '18px' }}>{count}</td>;
               })}
             </tr>
           </thead>
           <tbody>
-            {empleadosVisibles.map(emp => (
-              <FilaEmpleado 
-                key={emp.Cedula}
-                emp={emp}
-                numerosDias={numerosDias}
-                asistencia={asistencia}
-                celdasBloqueadas={celdasBloqueadas}
-                sedeActual={sedesEditadas[emp.Cedula] || emp.SedeOriginal}
-                listaSedes={listaSedesUnicas}
-                onAsistenciaChange={onAsistenciaChange}
-                onSedeChange={onSedeChange}
-                mes={mes}
-                semana={semana}
-              />
-            ))}
+            {empleadosVisibles.map(emp => {
+              const id = emp.Cedula;
+              const sedeActual = sedesEditadas[id] || emp.SedeOriginal;
+              return (
+                <tr key={id} style={{ borderBottom: '1px solid #222' }}>
+                  <td style={{ padding: '12px' }}>
+                    <div style={{ fontWeight: 'bold', color: '#fff' }}>{emp.Nombre}</div>
+                    <div style={{ fontSize: '9px', color: '#aaa' }}>{id} | {emp.Region}</div>
+                  </td>
+                  {/* EDITOR DE SEDE */}
+                  <td style={{ padding: '12px' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:'5px', background:'#000', padding:'5px', borderRadius:'5px', border:'1px solid #333' }}>
+                        <MapPin size={10} color="#FFD700" />
+                        <select 
+                          value={sedeActual}
+                          onChange={(e) => setSedesEditadas({...sedesEditadas, [id]: e.target.value})}
+                          style={{ background:'none', color:'#FFD700', border:'none', fontSize:'10px', width:'100%', outline:'none', cursor:'pointer' }}
+                        >
+                           {/* Muestra todas las sedes posibles para elegir */}
+                           {listaSedes.filter(s => s !== 'TODAS').map(s => <option key={s} value={s} style={{background:'#111'}}>{s}</option>)}
+                        </select>
+                    </div>
+                  </td>
+                  {/* ASISTENCIA */}
+                  {numerosDias.map((n, i) => {
+                    const k = `${id}-${mes}-${semana}-${n}`;
+                    const val = asistencia[k] || 'LABORAL';
+                    const locked = celdasBloqueadas.includes(k);
+                    return (
+                      <td key={i} style={{ padding: '4px', position: 'relative' }}>
+                        <select value={val} disabled={locked} onChange={e => setAsistencia({...asistencia, [k]: e.target.value})} style={{ 
+                          width: '100%', padding: '7px', borderRadius: '6px', fontSize: '10px', background: locked ? '#000' : '#1a1a1a',
+                          color: locked || val === 'LIBRE' ? '#0f0' : '#fff', 
+                          border: locked ? '1px solid #222' : '1px solid #444',
+                          textAlign: 'center'
+                        }}>
+                          <option value="LABORAL">LABORAL</option>
+                          <option value="LIBRE">LIBRE</option>
+                          <option value="EGRESO">EGRESO</option>
+                          <option value="TIENDA CERRADA">TIENDA CERRADA</option>
+                        </select>
+                        {locked && <Lock size={8} style={{ position: 'absolute', top: '5px', right: '5px', color: '#FFD700', opacity: 0.5 }} />}
+                      </td>
+                    );
+                  })}
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
